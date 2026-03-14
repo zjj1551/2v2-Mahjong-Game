@@ -1,0 +1,140 @@
+/* css/index.css */
+:root {
+    /* 麻将风核心配色 */
+    --color-bg-base: #1b4332;       /* 深绿色 (桌布感) */
+    --color-bg-panel: rgba(27, 67, 50, 0.7);
+    --color-primary: #fdf5e6;        /* 象牙白/旧蕾丝 (牌面感) */
+    --color-primary-glow: rgba(253, 245, 230, 0.3);
+    --color-primary-dark: #e9ecef;
+    --color-accent: #d4af37;         /* 金色 (装饰) */
+    --color-wood: #5d4037;           /* 木纹棕 (边框) */
+    --color-danger: #ae2012;         /* 暗红色 */
+    --color-success: #2d6a4f;
+
+    /* 文字色 */
+    --text-main: #fdf5e6;
+    --text-muted: #95d5b2;
+    --text-accent: #d4af37;
+
+    /* 边框与毛玻璃 */
+    --glass-border: 1px solid rgba(253, 245, 230, 0.15);
+    --glass-border-focus: 1px solid var(--color-accent);
+    --glass-blur: blur(12px);
+    --glass-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.5);
+
+    /* 字体 */
+    --font-zh: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+    --font-en: 'Cinzel', serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--color-bg-base);
+    color: var(--text-main);
+    font-family: var(--font-zh);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    user-select: none;
+}
+
+/* 炫光背景系统 (调整为更柔和的绿色系) */
+#app-background {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: -1;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, #2d6a4f 0%, #081c15 100%);
+}
+
+.glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.1;
+    animation: float 25s infinite ease-in-out alternate;
+}
+
+.orb-1 {
+    width: 900px; height: 900px;
+    background: var(--color-accent);
+    top: -300px; left: -200px;
+}
+
+.orb-2 {
+    width: 700px; height: 700px;
+    background: #40916c;
+    bottom: -150px; right: -100px;
+    animation-delay: -7s;
+}
+
+.orb-3 {
+    width: 600px; height: 600px;
+    background: var(--color-wood);
+    top: 40%; left: 70%;
+    animation-delay: -12s;
+}
+
+.bg-noise {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    pointer-events: none;
+}
+
+
+/* 全局动画定义 */
+@keyframes float {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.fade-in-left { animation: fadeInLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+.fade-in-right { animation: fadeInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+.fade-in-down { animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+
+/* 视图容器管理 */
+.view-container {
+    min-height: 100vh;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.view-container.active {
+    display: flex;
+}
+
+/* 全局工具类 */
+.hidden { display: none !important; }

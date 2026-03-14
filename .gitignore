@@ -1,0 +1,19 @@
+# Dependencies
+mahjong-frontend/node_modules/
+
+# Build artifacts
+mahjong-server/target/
+mahjong-server/maven.zip
+
+# Cocos Creator cache/output
+mahjong-Cocos/library/
+mahjong-Cocos/temp/
+mahjong-Cocos/profiles/
+
+# IDE/OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# External reference project (do not upload)
+mahjong-GitHub/
