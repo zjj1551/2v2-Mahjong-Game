@@ -2,9 +2,8 @@ const puppeteer = require('puppeteer');
 
 (async () => {
     console.log("Starting Puppeteer test for room creation and exit...");
-    const browser = await puppeteer.launch({ 
-        headless: "new",
-        executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' 
+    const browser = await puppeteer.launch({
+        headless: "new"
     });
     const page = await browser.newPage();
     

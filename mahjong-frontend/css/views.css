@@ -319,6 +319,218 @@
     box-shadow: inset 0 0 30px rgba(212, 175, 55, 0.05);
 }
 
+.game-console-modal {
+    max-width: 920px;
+}
+
+.game-console-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+}
+
+.game-console-meta strong {
+    color: var(--color-accent);
+}
+
+.game-console-status-panel {
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(253, 245, 230, 0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+
+.game-console-status-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    align-items: flex-start;
+}
+
+.game-console-status-row:last-child {
+    margin-bottom: 0;
+}
+
+.game-console-status-label {
+    min-width: 54px;
+    color: var(--text-muted);
+}
+
+.game-console-status-value {
+    color: var(--text-main);
+}
+
+.game-console-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.game-console-action-btn {
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    color: var(--color-primary);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+}
+
+.game-console-action-btn:hover {
+    background: rgba(212, 175, 55, 0.22);
+    transform: translateY(-1px);
+}
+
+.game-console-action-btn.secondary {
+    border-color: rgba(253, 245, 230, 0.15);
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.game-console-action-btn.danger {
+    border-color: rgba(230, 57, 70, 0.45);
+    color: #ffb3ba;
+    background: rgba(230, 57, 70, 0.12);
+}
+
+.game-console-hand-panel {
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(253, 245, 230, 0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+
+.game-console-section-title {
+    color: var(--color-accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.game-console-hand-summary {
+    color: #d8e6d0;
+    line-height: 1.8;
+    margin-bottom: 12px;
+}
+
+.game-console-hand {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.game-console-tile {
+    background: linear-gradient(180deg, rgba(252, 247, 232, 0.97) 0%, rgba(228, 216, 190, 0.92) 100%);
+    color: #31261a;
+    border: 1px solid rgba(94, 70, 34, 0.35);
+    border-radius: 10px;
+    padding: 10px 12px;
+    min-width: 68px;
+    text-align: center;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.game-console-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
+}
+
+.game-console-tile.selected {
+    outline: 2px solid var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+}
+
+.game-console-tile-name {
+    display: block;
+    font-weight: 700;
+}
+
+.game-console-tile-id {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 3px;
+}
+
+.game-console-output {
+    min-height: 320px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.58);
+    border: 1px solid rgba(253, 245, 230, 0.1);
+    border-radius: 12px;
+    padding: 14px;
+    font-family: monospace;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #d8e6d0;
+    margin-bottom: 14px;
+}
+
+.game-console-line {
+    margin-bottom: 6px;
+    word-break: break-all;
+}
+
+.game-console-line.system {
+    color: var(--color-accent);
+}
+
+.game-console-line.error {
+    color: #ff8f8f;
+}
+
+.game-console-line.cmd {
+    color: #8fd9ff;
+}
+
+.game-console-help {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.game-console-help span {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    padding: 6px 10px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.game-console-input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.game-console-input-row input {
+    flex: 1;
+}
+
+@media (max-width: 900px) {
+    .game-console-modal {
+        max-width: 96vw;
+        padding: 18px;
+    }
+
+    .game-console-output {
+        min-height: 240px;
+        max-height: 300px;
+    }
+
+    .game-console-tile {
+        min-width: 60px;
+        padding: 8px 10px;
+    }
+}
+
 .rank-table-wrapper {
     flex: 1;
     overflow-y: auto;

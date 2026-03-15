@@ -6,8 +6,10 @@ class LobbyController {
     constructor() {
         this.roomsContainer = document.getElementById('list-rooms');
         this.ws = null;
-        this.pingInterval = null;
+        this.keepAliveInterval = null;
         this.lastFriendRequests = [];
+        this.rejoinAttempted = false;
+        this.roomContextKey = 'mahjong_room_context';
     }
 
     // 初始化大厅数据，在用户登录成功后调用
@@ -76,12 +78,16 @@ class LobbyController {
             this.ws = null;
         }
 
-        const wsUrl = `ws://localhost:8080/ws/game?userId=${userId}`;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host || 'localhost:8081';
+        const wsUrl = `${wsProtocol}//${wsHost}/ws/game?userId=${userId}`;
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
             console.log('✅ WebSocket 连接成功');
-            this.startPing();
+            this.rejoinAttempted = false;
+            this.startKeepAlive();
+            this.tryRejoinSavedRoom();
         };
 
         this.ws.onmessage = (event) => {
@@ -95,7 +101,7 @@ class LobbyController {
 
         this.ws.onclose = () => {
             console.log('❌ WebSocket 断开');
-            this.stopPing();
+            this.stopKeepAlive();
             // 自动重连
             if (app.state.user && app.state.currentView !== 'auth') {
                 setTimeout(() => this.connectWebSocket(app.state.user.userId), 3000);
@@ -103,17 +109,46 @@ class LobbyController {
         };
     }
 
-    startPing() {
-        this.stopPing();
-        this.pingInterval = setInterval(() => {
+    startKeepAlive() {
+        this.stopKeepAlive();
+        this.keepAliveInterval = setInterval(() => {
             this.sendWsMessage('C_PING', null, {});
-        }, 20000); // 20秒心跳
+        }, 20000); // 20秒连接保活
     }
 
-    stopPing() {
-        if (this.pingInterval) {
-            clearInterval(this.pingInterval);
-            this.pingInterval = null;
+    stopKeepAlive() {
+        if (this.keepAliveInterval) {
+            clearInterval(this.keepAliveInterval);
+            this.keepAliveInterval = null;
+        }
+    }
+
+    tryRejoinSavedRoom() {
+        if (this.rejoinAttempted) return;
+        this.rejoinAttempted = true;
+        const savedRoomId = this.getSavedRoomId();
+        if (!savedRoomId) return;
+        this.sendWsMessage('C_JOIN_ROOM', savedRoomId, {});
+        app.showToast(`已尝试恢复房间 ${savedRoomId}`);
+    }
+
+    saveRoomContext(roomId) {
+        if (!roomId) return;
+        localStorage.setItem(this.roomContextKey, JSON.stringify({ roomId }));
+    }
+
+    clearRoomContext() {
+        localStorage.removeItem(this.roomContextKey);
+    }
+
+    getSavedRoomId() {
+        try {
+            const raw = localStorage.getItem(this.roomContextKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.roomId || null;
+        } catch (error) {
+            return null;
         }
     }
 
@@ -121,8 +156,24 @@ class LobbyController {
         const type = msg.type;
         const data = msg.data || {};
 
+        const gameMessageTypes = new Set([
+            'S_GAME_START',
+            'S_SELECT_MISS_SUIT',
+            'S_MISS_SUIT_RESULT',
+            'S_DRAW',
+            'S_DISCARD',
+            'S_ACTION_OPTIONS',
+            'S_PENG',
+            'S_GANG',
+            'S_HU',
+            'S_ROUND_RESULT',
+            'S_GAME_OVER',
+            'S_PONG'
+        ]);
+
         switch (type) {
             case 'S_ROOM_STATE':
+                this.saveRoomContext(data.roomId);
                 if (window.room) {
                     // 如果当前不在房间视图，则切过去
                     if (app.state.currentView !== 'room-prep') {
@@ -131,11 +182,15 @@ class LobbyController {
                         window.room.handleRoomStateUpdate(data);
                     }
                 }
+                if (window.gameConsole && window.gameConsole.isOpen) {
+                    window.gameConsole.handleServerMessage(msg);
+                }
                 break;
             
             case 'S_LEAVE_ROOM':
                 // 收到玩家离开通知
                 if (data.userId === app.state.user.userId) {
+                    this.clearRoomContext();
                     app.switchView('lobby');
                     this.loadRooms();
                 } else {
@@ -145,6 +200,9 @@ class LobbyController {
 
             case 'S_CHAT':
                 if (window.room) window.room.handleChatReceive(data);
+                if (window.gameConsole && window.gameConsole.isOpen) {
+                    window.gameConsole.handleServerMessage(msg);
+                }
                 break;
 
             case 'S_ROOM_INVITE':
@@ -152,35 +210,42 @@ class LobbyController {
                 break;
 
             case 'S_ROOM_DISBANDED':
+                this.clearRoomContext();
                 app.showToast(data.reason || "房间已解散", "info");
                 app.switchView('lobby');
                 this.loadRooms();
                 break;
 
             case 'S_GAME_START':
-                // --- Cocos 接入点模拟 ---
                 this.simulateCocosTransition(data);
                 break;
 
             case 'S_ERROR':
                 app.showError(data.message || '操作失败');
+                if (window.gameConsole && window.gameConsole.isOpen) {
+                    window.gameConsole.handleServerMessage(msg);
+                }
                 break;
 
             case 'S_PONG':
-                // 心跳响应
+                if (window.gameConsole && window.gameConsole.isOpen) {
+                    window.gameConsole.handleServerMessage(msg);
+                }
+                break;
+
+            default:
+                if (window.gameConsole && gameMessageTypes.has(type)) {
+                    window.gameConsole.handleServerMessage(msg);
+                }
                 break;
         }
     }
 
-    // 模拟跳转到 Cocos 游戏场景
     simulateCocosTransition(gameStartData) {
-        app.showSuccess("对局开始！即将进入游戏...");
-        
-        // 模拟 1 秒后清理 UI，并显示一个占位符
-        setTimeout(() => {
-            app.switchView('lobby'); // 先切回大厅以示退出
-            alert("【模拟】Cocos 场景已接管。\n\n庄家座位: " + gameStartData.bankerSeat + "\n初始手牌: " + JSON.stringify(gameStartData.handTiles));
-        }, 1500);
+        app.showSuccess("对局开始！网页终端已接管。");
+        if (window.gameConsole) {
+            window.gameConsole.open(gameStartData);
+        }
     }
 
     handleInviteReceive(data) {
@@ -271,6 +336,7 @@ class LobbyController {
             app.showError('房间已满');
             return;
         }
+        this.saveRoomContext(roomId);
         this.sendWsMessage('C_JOIN_ROOM', roomId, {});
     }
 

@@ -8,23 +8,31 @@ class RoomController {
         this.mySeatIndex = -1;
         this.isReady = false;
         this.isCreator = false;
+        this.roomStatus = 'WAITING';
     }
 
     // 进入房间入口 (由 Lobby 调用)
     enter(roomId, roomData) {
         this.currentRoomId = roomId;
+        if (window.lobby) window.lobby.saveRoomContext(roomId);
         document.getElementById('lbl-prep-room-id').innerText = `${roomId}`;
 
         // 重置状态
         this.seats = [null, null, null, null];
         this.mySeatIndex = -1;
         this.isReady = false;
+        this.roomStatus = 'WAITING';
         
         // UI 初始化
         const btnReady = document.getElementById('btn-ready');
         btnReady.disabled = true;
         btnReady.innerText = "准备";
         btnReady.classList.remove('active');
+
+        const btnStart = document.getElementById('btn-start-game');
+        if (btnStart) {
+            btnStart.disabled = true;
+        }
 
         document.getElementById('chat-message-list').innerHTML =
             '<div class="chat-msg system" style="color:var(--color-primary); text-align:center; font-size:0.9em;">--- 欢迎来到蜀山论剑 ---</div>';
@@ -42,6 +50,7 @@ class RoomController {
         if (!confirm("确定要离开房间吗？")) return;
         if (window.lobby && window.lobby.ws) {
             window.lobby.sendWsMessage('C_LEAVE_ROOM', this.currentRoomId, {});
+            window.lobby.clearRoomContext();
         }
         this.resetUI();
         app.switchView('lobby');
@@ -57,6 +66,7 @@ class RoomController {
         if (confirm("确定要解散房间吗？此操作将把所有人踢出。")) {
             if (window.lobby && window.lobby.ws) {
                 window.lobby.sendWsMessage('C_DISBAND_ROOM', this.currentRoomId, {});
+                window.lobby.clearRoomContext();
             }
             this.resetUI();
             app.switchView('lobby');
@@ -70,6 +80,7 @@ class RoomController {
         this.mySeatIndex = -1;
         this.isReady = false;
         this.isCreator = false;
+        this.roomStatus = 'WAITING';
         
         // 显式隐藏房间头部的管理按钮区
         const creatorEl = document.getElementById('creator-controls');
@@ -84,7 +95,9 @@ class RoomController {
         if (!data) return;
         
         this.currentRoomId = data.roomId;
+        if (window.lobby) window.lobby.saveRoomContext(data.roomId);
         this.isCreator = data.creatorId === app.state.user.userId;
+        this.roomStatus = data.status || 'WAITING';
         
         // 房主控制区显示/隐藏
         const creatorEl = document.getElementById('creator-controls');
@@ -165,6 +178,7 @@ class RoomController {
     // 更新操作按钮状态
     updateActionButtons(data) {
         const btnReady = document.getElementById('btn-ready');
+        const btnStart = document.getElementById('btn-start-game');
         
         if (this.mySeatIndex === -1) {
             btnReady.disabled = true;
@@ -175,6 +189,14 @@ class RoomController {
             btnReady.innerText = this.isReady ? "取消准备" : "准备就绪";
             if (this.isReady) btnReady.classList.add('active');
             else btnReady.classList.remove('active');
+        }
+
+        if (btnStart) {
+            const occupiedSeats = this.seats.filter(Boolean).length;
+            const allReady = occupiedSeats === 4 && this.seats.every(p => p && p.ready);
+            const gameNotStarted = this.roomStatus !== 'PLAYING';
+            const canStart = this.isCreator && allReady && gameNotStarted;
+            btnStart.disabled = !canStart;
         }
 
         // 房主特权：解散按钮 (如果需要动态添加)
@@ -207,6 +229,22 @@ class RoomController {
     toggleReady() {
         if (this.mySeatIndex === -1) return;
         window.lobby.sendWsMessage('C_READY', this.currentRoomId, {});
+    }
+
+    startGame() {
+        if (!this.isCreator) {
+            app.showError('只有房主可以开始游戏');
+            return;
+        }
+
+        const occupiedSeats = this.seats.filter(Boolean).length;
+        const allReady = occupiedSeats === 4 && this.seats.every(p => p && p.ready);
+        if (!allReady) {
+            app.showToast('需要 4 名玩家全部准备后才能开始');
+            return;
+        }
+
+        window.lobby.sendWsMessage('C_START_GAME', this.currentRoomId, {});
     }
 
     // --- 聊天系统 ---

@@ -1,7 +1,11 @@
 // js/api.js
 // 封装与后端的 REST API 交互
 
-const API_BASE_URL = 'http://localhost:8080/api';
+function resolveApiBaseUrl() {
+    return '/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 class ApiService {
     async request(endpoint, method = 'GET', data = null) {

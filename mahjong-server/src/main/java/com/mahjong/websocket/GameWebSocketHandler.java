@@ -443,7 +443,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
     }
 
     /**
-     * 切换准备状态。全部4人就座且全部准备后自动开始。
+     * 切换准备状态。
      */
     private void handleReady(WebSocketSession session, String roomId, Long userId) {
         if (roomId == null || userId == null) {
@@ -466,12 +466,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
 
         broadcastToRoom(room, new GameMessage(MessageType.S_READY_CHANGED,
                 Map.of("seatIndex", p.getSeatIndex(), "userId", userId, "ready", newReady)));
-
-        // 全部准备后自动开始游戏
-        if (room.isAllReady()) {
-            log.info("房间 " + roomId + " 全部准备，自动开始游戏");
-            gameService.startGame(roomId);
-        }
+        // 推送全量状态，前端据此刷新按钮与座位状态
+        broadcastRoomState(room);
     }
 
     /**
@@ -609,7 +605,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
     }
 
     /**
-     * 房主强制开始游戏（需 4 个座位全就座）
+     * 房主开始游戏（需 4 人全部准备）
      */
     private void handleStartGame(WebSocketSession session, String roomId, Long userId) {
         if (roomId == null || userId == null) {
@@ -627,6 +623,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
         }
         if (!room.isFull()) {
             sendError(session, 1063, "需要 4 个玩家全就座才能开始");
+            return;
+        }
+        if (!room.isAllReady()) {
+            sendError(session, 1064, "需要 4 个玩家全部准备后才能开始");
             return;
         }
         log.info("房主 " + userId + " 强制开始房间 " + roomId);

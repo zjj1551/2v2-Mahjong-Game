@@ -230,6 +230,68 @@
         </div>
     </div>
 
+    <div id="modal-game-console" class="modal-overlay hidden">
+        <div class="modal-content glass-panel game-console-modal">
+            <button class="btn-close" onclick="gameConsole.close()">×</button>
+            <h2 class="modal-title">网页内嵌对局终端</h2>
+            <p style="color: var(--text-muted); margin-bottom: 16px;">
+                开局后直接在网页里继续进行定缺、出牌、碰杠胡，不再下载外部 CLI 脚本。
+            </p>
+
+            <div class="game-console-meta">
+                <span>房间: <strong id="game-console-room-id">-</strong></span>
+                <span>用户: <strong id="game-console-user-id">-</strong></span>
+                <span>座位: <strong id="game-console-seat-index">-</strong></span>
+                <span>庄家: <strong id="game-console-banker-seat">-</strong></span>
+            </div>
+
+            <div class="game-console-status-panel">
+                <div class="game-console-status-row">
+                    <span class="game-console-status-label">阶段</span>
+                    <span id="game-console-phase" class="game-console-status-value">等待开局</span>
+                </div>
+                <div class="game-console-status-row">
+                    <span class="game-console-status-label">提示</span>
+                    <span id="game-console-tip" class="game-console-status-value">开局后可直接点击按钮操作。</span>
+                </div>
+                <div class="game-console-status-row">
+                    <span class="game-console-status-label">已选牌</span>
+                    <span id="game-console-selected-tile" class="game-console-status-value">未选择</span>
+                </div>
+            </div>
+
+            <div id="game-console-actions" class="game-console-actions"></div>
+
+            <div class="game-console-hand-panel">
+                <div class="game-console-section-title">我的手牌</div>
+                <div id="game-console-hand-summary" class="game-console-hand-summary">暂无手牌</div>
+                <div id="game-console-hand" class="game-console-hand"></div>
+            </div>
+
+            <div id="game-console-output" class="game-console-output"></div>
+
+            <div class="game-console-help">
+                <span>按钮优先操作</span>
+                <span>miss 万|筒|条</span>
+                <span>点击手牌后出牌</span>
+                <span>pass</span>
+                <span>peng</span>
+                <span>gang</span>
+                <span>bu</span>
+                <span>angang</span>
+                <span>hu</span>
+                <span>zimo</span>
+                <span>chat 文本</span>
+                <span>state</span>
+            </div>
+
+            <form class="game-console-input-row" onsubmit="gameConsole.submit(event)">
+                <input id="game-console-input" type="text" placeholder="仍可输入命令，例如：discard 12 或 chat 大家快点" autocomplete="off" />
+                <button type="submit" class="btn-primary">发送</button>
+            </form>
+        </div>
+    </div>
+
     <!-- 对局准备视图 (选座与聊天室) -->
     <section id="view-room-prep" class="view-container hidden fade-in">
         <header class="lobby-header glass-header" style="justify-content: flex-start; gap: 20px;">
@@ -271,6 +333,7 @@
                     <!-- 中心区域 -->
                     <div class="table-center">
                         <button class="btn-primary btn-large" id="btn-ready" onclick="room.toggleReady()" disabled>准备</button>
+                        <button class="btn-primary btn-large" id="btn-start-game" onclick="room.startGame()" disabled style="margin-top:12px;">开始游戏</button>
                     </div>
                 </div>
             </div>
@@ -434,6 +497,7 @@
     <script src="js/lobby.js"></script>
     <script src="js/leaderboard.js"></script>
     <script src="js/room.js"></script>
+    <script src="js/game-console.js"></script>
     <script src="js/app.js"></script>
 </body>
 

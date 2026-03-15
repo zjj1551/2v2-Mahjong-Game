@@ -63,10 +63,193 @@ def save_session(data):
 def clear_session():
     SESSION_FILE.unlink(missing_ok=True)
 
+def update_session(**kwargs):
+    sess = load_session()
+    for key, value in kwargs.items():
+        if value is None:
+            sess.pop(key, None)
+        else:
+            sess[key] = value
+    save_session(sess)
+    return sess
+
 def _need_login():
     sess = load_session()
     if not sess: die("请先登录: python mahjong_cli.py login <username> <password>")
     return sess
+
+def _need_ws():
+    if not HAS_WS:
+        die("缺少 websocket-client，请运行: pip install websocket-client")
+
+def _need_room(args, index=0):
+    sess = _need_login()
+    room_id = args[index] if len(args) > index else sess.get("currentRoomId")
+    if not room_id:
+        die("请先通过 room-join 进入房间，或在命令里显式传入 roomId")
+    return sess, room_id
+
+def _clear_room_state():
+    update_session(currentRoomId=None, currentSeatIndex=None, currentRoomStatus=None, currentReady=None)
+
+def _sync_room_state(room_state, user_id):
+    seat_index = None
+    ready = None
+    for seat in room_state.get("seats", []):
+        if seat.get("occupied") and seat.get("userId") == user_id:
+            seat_index = seat.get("seatIndex")
+            ready = seat.get("ready")
+            break
+    update_session(
+        currentRoomId=room_state.get("roomId"),
+        currentSeatIndex=seat_index,
+        currentRoomStatus=room_state.get("status"),
+        currentReady=ready,
+    )
+
+def _format_room_state(room_state, user_id=None):
+    print(bold(f"  房间 {room_state.get('roomId')} ({room_state.get('roomName')}) [{room_state.get('status')}]") )
+    print(f"    创建者:{room_state.get('creatorId')}  底分:{room_state.get('baseScore')}  局数:{room_state.get('maxRounds')}")
+    for seat in room_state.get("seats", []):
+        marker = "*" if user_id is not None and seat.get("userId") == user_id else " "
+        if seat.get("occupied"):
+            ready = green("●") if seat.get("ready") else yellow("○")
+            online = "" if seat.get("online", True) else dim(" (离线)")
+            print(f"   {marker}[{seat['seatIndex']}] {ready} {seat.get('nickname')}{online}")
+        else:
+            print(f"   {marker}[{seat['seatIndex']}] {dim('空座')}")
+    lobby = room_state.get("lobbyUsers", [])
+    if lobby:
+        watchers = ", ".join(user.get("nickname", str(user.get("userId"))) for user in lobby)
+        print(f"    大厅玩家: {watchers}")
+
+def _format_ws_message(message, user_id=None):
+    msg_type = message.get("type", "?")
+    if msg_type == "S_ROOM_STATE" and isinstance(message.get("data"), dict):
+        _format_room_state(message["data"], user_id)
+        return
+    if msg_type == "S_ERROR":
+        err(f"{message.get('errorCode', '?')}: {message.get('errorMsg', '未知错误')}")
+        return
+    data = message.get("data", {})
+    if msg_type == "S_GAME_START":
+        print(bold(f"  游戏开始 seat={data.get('seatIndex')} banker={data.get('bankerSeat')} round={data.get('round')}/{data.get('maxRounds')}"))
+        print(f"    手牌: {data.get('handTiles', [])}")
+        return
+    if msg_type == "S_SELECT_MISS_SUIT":
+        info(data.get("message", "请选择定缺花色"))
+        return
+    if msg_type == "S_READY_CHANGED":
+        status = "已准备" if data.get("ready") else "取消准备"
+        info(f"座位 {data.get('seatIndex')} {status}")
+        return
+    if msg_type == "S_SEAT_CHANGED":
+        info(f"座位变更 seat={data.get('seatIndex')} action={data.get('action')} nickname={data.get('nickname')}")
+        return
+    if msg_type == "S_DRAW":
+        print(cyan(f"→  摸牌/轮转: {json.dumps(data, ensure_ascii=False)}"))
+        return
+    if msg_type == "S_DISCARD":
+        info(f"座位 {data.get('seatIndex')} 打出 {data.get('tileName')} (tileId={data.get('tileId')})")
+        return
+    if msg_type == "S_ACTION_OPTIONS":
+        info(f"可用操作: {', '.join(data.get('actions', []))}")
+        return
+    if msg_type == "S_CHAT":
+        print(cyan(f"→  [{data.get('nickname', '系统')}] {data.get('message', '')}"))
+        return
+    print(cyan(f"→  {msg_type}  {json.dumps(data, ensure_ascii=False)}"))
+
+def _extract_latest(messages, msg_type):
+    for message in reversed(messages):
+        if message.get("type") == msg_type:
+            return message
+    return None
+
+def _ws_send(ws, msg_type, data=None, room_id=None, user_id=None):
+    msg = {"type": msg_type}
+    if room_id is not None: msg["roomId"] = room_id
+    if user_id is not None: msg["userId"] = user_id
+    if data is not None: msg["data"] = data
+    ws.send(json.dumps(msg, ensure_ascii=False))
+
+def _ws_collect(ws, seconds, expected_types=None):
+    messages = []
+    expected = set(expected_types or [])
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        try:
+            ws.settimeout(min(0.5, max(0.1, deadline - time.time())))
+            raw = ws.recv()
+            if not raw:
+                continue
+            message = json.loads(raw)
+            messages.append(message)
+            msg_type = message.get("type")
+            if msg_type in expected:
+                expected.discard(msg_type)
+                if not expected:
+                    grace = time.time() + 0.2
+                    while time.time() < grace:
+                        try:
+                            ws.settimeout(0.1)
+                            extra_raw = ws.recv()
+                            if extra_raw:
+                                messages.append(json.loads(extra_raw))
+                        except websocket.WebSocketTimeoutException:
+                            break
+                    break
+        except websocket.WebSocketTimeoutException:
+            continue
+    return messages
+
+def _ws_transact(user_id, room_id, actions=None, expected_types=None, join_first=True, listen_seconds=2.0):
+    _need_ws()
+    ws = websocket.create_connection(f"{WS_URL}?userId={user_id}", timeout=TIMEOUT)
+    try:
+        ws.settimeout(0.5)
+        if join_first:
+            _ws_send(ws, "C_JOIN_ROOM", room_id=room_id, user_id=user_id, data={})
+            time.sleep(0.2)
+        for action in actions or []:
+            _ws_send(ws,
+                     action["type"],
+                     data=action.get("data"),
+                     room_id=room_id,
+                     user_id=user_id)
+            time.sleep(action.get("delay", 0.2))
+        return _ws_collect(ws, listen_seconds, expected_types)
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+def _print_and_sync_ws(messages, user_id):
+    had_error = False
+    for message in messages:
+        _format_ws_message(message, user_id)
+        if message.get("type") == "S_ROOM_STATE" and isinstance(message.get("data"), dict):
+            _sync_room_state(message["data"], user_id)
+        elif message.get("type") == "S_READY_CHANGED" and isinstance(message.get("data"), dict):
+            data = message["data"]
+            if data.get("userId") == user_id:
+                update_session(currentReady=data.get("ready"))
+        elif message.get("type") == "S_SEAT_CHANGED" and isinstance(message.get("data"), dict):
+            data = message["data"]
+            if data.get("userId") == user_id:
+                action = data.get("action")
+                if action == "SIT":
+                    update_session(currentSeatIndex=data.get("seatIndex"))
+                elif action in ("STAND", "LEAVE"):
+                    update_session(currentSeatIndex=None, currentReady=None)
+        elif message.get("type") == "S_LEAVE_ROOM":
+            _clear_room_state()
+        elif message.get("type") == "S_ROOM_DISBANDED":
+            _clear_room_state()
+        elif message.get("type") == "S_ERROR":
+            had_error = True
+    return not had_error
 
 # ─── HTTP 工具 ────────────────────────────────────────────
 def _need_requests():
@@ -214,9 +397,322 @@ def cmd_room_create(args):
         "maxRounds": int(args[2]) if len(args) > 2 else 8,
     })
     if r.get("success"):
+        update_session(currentRoomId=r["roomId"], currentSeatIndex=None, currentRoomStatus="WAITING", currentReady=None)
         ok(f"房间创建成功  roomId={r['roomId']}  roomName={r['roomName']}")
     else:
         err(r.get("msg", "创建失败"))
+
+def cmd_room_join(args):
+    """room-join <roomId>  通过 WebSocket 进入房间大厅并记住当前房间"""
+    sess = _need_login()
+    if not args:
+        die("用法: room-join <roomId>")
+    room_id = args[0]
+    messages = _ws_transact(sess["userId"], room_id, expected_types={"S_ROOM_STATE"}, join_first=True, listen_seconds=2.5)
+    if _print_and_sync_ws(messages, sess["userId"]):
+        update_session(currentRoomId=room_id)
+        ok(f"已进入房间大厅  roomId={room_id}")
+
+def cmd_room_seat(args):
+    """room-seat <seatIndex> [roomId]  入座或换座"""
+    if not args:
+        die("用法: room-seat <seatIndex> [roomId]")
+    seat_index = int(args[0])
+    sess, room_id = _need_room(args, 1)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_CHOOSE_SEAT", "data": {"seatIndex": seat_index}}],
+        expected_types={"S_ROOM_STATE", "S_SEAT_CHANGED"},
+        join_first=True,
+        listen_seconds=2.5,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已请求入座 seatIndex={seat_index}")
+
+def cmd_room_stand(args):
+    """room-stand [roomId]  从当前座位起身回到大厅"""
+    sess, room_id = _need_room(args, 0)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_LEAVE_SEAT", "data": {}}],
+        expected_types={"S_ROOM_STATE", "S_SEAT_CHANGED"},
+        join_first=True,
+        listen_seconds=2.5,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok("已请求起身")
+
+def cmd_room_ready(args):
+    """room-ready [roomId]  切换准备状态"""
+    sess, room_id = _need_room(args, 0)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_READY", "data": {}}],
+        expected_types={"S_READY_CHANGED", "S_ROOM_STATE", "S_GAME_START", "S_SELECT_MISS_SUIT"},
+        join_first=True,
+        listen_seconds=3.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok("准备状态已切换")
+
+def cmd_room_start(args):
+    """room-start [roomId]  房主强制开始游戏"""
+    sess, room_id = _need_room(args, 0)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_START_GAME", "data": {}}],
+        expected_types={"S_GAME_START", "S_SELECT_MISS_SUIT"},
+        join_first=True,
+        listen_seconds=3.5,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok("已发送开始游戏请求")
+
+def cmd_room_leave(args):
+    """room-leave [roomId]  完全离开当前房间"""
+    sess, room_id = _need_room(args, 0)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_LEAVE_ROOM", "data": {}}],
+        expected_types={"S_LEAVE_ROOM", "S_ROOM_STATE", "S_ROOM_DISBANDED"},
+        join_first=True,
+        listen_seconds=2.5,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已离开房间 {room_id}")
+
+def cmd_game_miss(args):
+    """game-miss <suitIndex> [roomId]  提交定缺花色 0=万 1=筒 2=条"""
+    if not args:
+        die("用法: game-miss <suitIndex> [roomId]")
+    suit_index = int(args[0])
+    sess, room_id = _need_room(args, 1)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_SELECT_MISS_SUIT", "data": {"suitIndex": suit_index}}],
+        expected_types={"S_MISS_SUIT_RESULT", "S_DRAW"},
+        join_first=True,
+        listen_seconds=3.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已提交定缺 suitIndex={suit_index}")
+
+def cmd_game_discard(args):
+    """game-discard <tileId> [roomId]  出牌"""
+    if not args:
+        die("用法: game-discard <tileId> [roomId]")
+    tile_id = int(args[0])
+    sess, room_id = _need_room(args, 1)
+    messages = _ws_transact(
+        sess["userId"],
+        room_id,
+        actions=[{"type": "C_DISCARD", "data": {"tileId": tile_id}}],
+        expected_types={"S_DISCARD", "S_ACTION_OPTIONS", "S_DRAW"},
+        join_first=True,
+        listen_seconds=3.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已请求出牌 tileId={tile_id}")
+
+def cmd_game_pass(args):
+    """game-pass [roomId]  跳过当前操作"""
+    sess, room_id = _need_room(args, 0)
+    messages = _ws_transact(
+        sess["userId"], room_id,
+        actions=[{"type": "C_PASS", "data": {}}],
+        expected_types={"S_DRAW", "S_ROOM_STATE", "S_ERROR"},
+        join_first=True,
+        listen_seconds=2.5,
+    )
+    _print_and_sync_ws(messages, sess["userId"])
+
+def cmd_game_peng(args):
+    """game-peng [roomId]  执行碰牌"""
+    sess, room_id = _need_room(args, 0)
+    messages = _ws_transact(
+        sess["userId"], room_id,
+        actions=[{"type": "C_PENG", "data": {}}],
+        expected_types={"S_PENG", "S_DRAW", "S_ERROR"},
+        join_first=True,
+        listen_seconds=3.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok("已发送碰牌请求")
+
+def cmd_game_gang(args):
+    """game-gang [MING|BU] [tileId] [roomId]  执行明杠或补杠"""
+    gang_type = "MING"
+    tile_id = 0
+    room_arg_index = 0
+    if args and args[0].upper() in ("MING", "BU"):
+        gang_type = args[0].upper()
+        room_arg_index = 1
+        if gang_type == "BU":
+            if len(args) < 2:
+                die("用法: game-gang BU <tileId> [roomId]")
+            tile_id = int(args[1])
+            room_arg_index = 2
+    sess, room_id = _need_room(args, room_arg_index)
+    messages = _ws_transact(
+        sess["userId"], room_id,
+        actions=[{"type": "C_GANG", "data": {"gangType": gang_type, "tileId": tile_id}}],
+        expected_types={"S_GANG", "S_DRAW", "S_ACTION_OPTIONS", "S_ERROR"},
+        join_first=True,
+        listen_seconds=3.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已发送杠牌请求 type={gang_type}")
+
+def cmd_game_an_gang(args):
+    """game-an-gang <tileId> [roomId]  执行暗杠"""
+    if not args:
+        die("用法: game-an-gang <tileId> [roomId]")
+    tile_id = int(args[0])
+    sess, room_id = _need_room(args, 1)
+    messages = _ws_transact(
+        sess["userId"], room_id,
+        actions=[{"type": "C_AN_GANG", "data": {"tileId": tile_id}}],
+        expected_types={"S_GANG", "S_DRAW", "S_ERROR"},
+        join_first=True,
+        listen_seconds=3.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已发送暗杠请求 tileId={tile_id}")
+
+def cmd_game_hu(args):
+    """game-hu [self|discard] [roomId]  执行胡牌（默认点炮胡）"""
+    is_self_draw = False
+    room_arg_index = 0
+    if args and args[0].lower() in ("self", "discard"):
+        is_self_draw = args[0].lower() == "self"
+        room_arg_index = 1
+    sess, room_id = _need_room(args, room_arg_index)
+    messages = _ws_transact(
+        sess["userId"], room_id,
+        actions=[{"type": "C_HU", "data": {"isSelfDraw": is_self_draw}}],
+        expected_types={"S_HU", "S_ROUND_RESULT", "S_ERROR"},
+        join_first=True,
+        listen_seconds=3.5,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok(f"已发送胡牌请求 isSelfDraw={str(is_self_draw).lower()}")
+
+def cmd_game_chat(args):
+    """game-chat <message...> [roomId]  发送房间聊天"""
+    if not args:
+        die("用法: game-chat <message...> [roomId]")
+    sess = _need_login()
+    room_id = sess.get("currentRoomId")
+    msg_args = args
+    if args[-1].startswith("R") and len(args[-1]) > 2:
+        room_id = args[-1]
+        msg_args = args[:-1]
+    if not room_id:
+        die("请先通过 room-join/room-seat 进入房间")
+    if not msg_args:
+        die("聊天内容不能为空")
+    message = " ".join(msg_args)
+    messages = _ws_transact(
+        sess["userId"], room_id,
+        actions=[{"type": "C_CHAT", "data": {"message": message}}],
+        expected_types={"S_CHAT", "S_ERROR"},
+        join_first=True,
+        listen_seconds=2.0,
+    )
+    if _print_and_sync_ws(messages, sess["userId"]):
+        ok("聊天消息已发送")
+
+def cmd_room_shell(args):
+    """room-shell [roomId]  进入持续连接的房间测试终端"""
+    sess, room_id = _need_room(args, 0)
+    _need_ws()
+
+    ws = websocket.create_connection(f"{WS_URL}?userId={sess['userId']}", timeout=TIMEOUT)
+    stop_event = threading.Event()
+
+    def receiver():
+        while not stop_event.is_set():
+            try:
+                ws.settimeout(0.5)
+                raw = ws.recv()
+                if not raw:
+                    continue
+                message = json.loads(raw)
+                _print_and_sync_ws([message], sess["userId"])
+            except websocket.WebSocketTimeoutException:
+                continue
+            except Exception as exc:
+                if not stop_event.is_set():
+                    err(f"room-shell 接收异常: {exc}")
+                break
+
+    _ws_send(ws, "C_JOIN_ROOM", room_id=room_id, user_id=sess["userId"], data={})
+    time.sleep(0.2)
+    for message in _ws_collect(ws, 1.5, {"S_ROOM_STATE"}):
+        _print_and_sync_ws([message], sess["userId"])
+
+    t = threading.Thread(target=receiver, daemon=True)
+    t.start()
+    print(bold("room-shell 已连接。命令: seat N | stand | ready | start | miss N | discard TILE_ID | pass | peng | gang | bu TILE_ID | angang TILE_ID | hu | zimo | chat 文本 | ping | info | quit"))
+
+    try:
+        while True:
+            line = input(f"room:{room_id}> ").strip()
+            if not line:
+                continue
+            parts = line.split()
+            cmd = parts[0]
+            payload = parts[1:]
+            if cmd in ("quit", "exit", "q"):
+                break
+            if cmd == "info":
+                current = load_session()
+                print(json.dumps({k: current.get(k) for k in ("userId", "nickname", "currentRoomId", "currentSeatIndex", "currentRoomStatus", "currentReady")}, ensure_ascii=False, indent=2))
+                continue
+            if cmd == "seat" and payload:
+                _ws_send(ws, "C_CHOOSE_SEAT", {"seatIndex": int(payload[0])}, room_id, sess["userId"])
+            elif cmd == "stand":
+                _ws_send(ws, "C_LEAVE_SEAT", {}, room_id, sess["userId"])
+            elif cmd == "ready":
+                _ws_send(ws, "C_READY", {}, room_id, sess["userId"])
+            elif cmd == "start":
+                _ws_send(ws, "C_START_GAME", {}, room_id, sess["userId"])
+            elif cmd == "miss" and payload:
+                _ws_send(ws, "C_SELECT_MISS_SUIT", {"suitIndex": int(payload[0])}, room_id, sess["userId"])
+            elif cmd == "discard" and payload:
+                _ws_send(ws, "C_DISCARD", {"tileId": int(payload[0])}, room_id, sess["userId"])
+            elif cmd == "pass":
+                _ws_send(ws, "C_PASS", {}, room_id, sess["userId"])
+            elif cmd == "peng":
+                _ws_send(ws, "C_PENG", {}, room_id, sess["userId"])
+            elif cmd == "gang":
+                _ws_send(ws, "C_GANG", {"gangType": "MING", "tileId": 0}, room_id, sess["userId"])
+            elif cmd == "bu" and payload:
+                _ws_send(ws, "C_GANG", {"gangType": "BU", "tileId": int(payload[0])}, room_id, sess["userId"])
+            elif cmd == "angang" and payload:
+                _ws_send(ws, "C_AN_GANG", {"tileId": int(payload[0])}, room_id, sess["userId"])
+            elif cmd == "hu":
+                _ws_send(ws, "C_HU", {"isSelfDraw": False}, room_id, sess["userId"])
+            elif cmd == "zimo":
+                _ws_send(ws, "C_HU", {"isSelfDraw": True}, room_id, sess["userId"])
+            elif cmd == "ping":
+                _ws_send(ws, "C_PING", {}, room_id, sess["userId"])
+            elif cmd == "chat" and payload:
+                _ws_send(ws, "C_CHAT", {"message": " ".join(payload)}, room_id, sess["userId"])
+            else:
+                err("未知 room-shell 命令")
+    finally:
+        stop_event.set()
+        try:
+            ws.close()
+        except Exception:
+            pass
 
 def cmd_room_list(_):
     """room-list  列出等待中的房间"""
@@ -332,13 +828,6 @@ def cmd_friend_reject(args):
 # ═══════════════════════════════════════════════════════════
 # WebSocket 测试
 # ═══════════════════════════════════════════════════════════
-
-def _ws_send(ws, msg_type, data=None, room_id=None, user_id=None):
-    msg = {"type": msg_type}
-    if room_id is not None: msg["roomId"]  = room_id
-    if user_id is not None: msg["userId"]  = user_id
-    if data    is not None: msg["data"]    = data
-    ws.send(json.dumps(msg, ensure_ascii=False))
 
 def cmd_ws_echo(args):
     """ws-echo <userId> <roomId>  连接 WebSocket，加入房间并监听5秒"""
@@ -462,6 +951,172 @@ def cmd_ws_game_test(_):
         types = all_msgs[i]
         print(f"  {u['nickname']}: {len(types)} 条 — {types}")
     ok("WebSocket 测试完成")
+
+def cmd_backend_smoke(_):
+    """backend-smoke  快速验证后端注册/登录/建房/查询/解散链路"""
+    _need_requests()
+    sfx = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    username = f"smoke_{sfx}"
+    nickname = f"冒烟_{sfx}"
+
+    print(bold("\n=== 后端冒烟测试 ===\n"))
+
+    reg = post("/api/user/register", {
+        "username": username,
+        "password": "SmokePass@1",
+        "nickname": nickname,
+    })
+    if not reg.get("success"):
+        die(f"注册失败: {reg.get('msg', '未知错误')}")
+    ok(f"注册成功 userId={reg['userId']}")
+
+    login = post("/api/user/login", {
+        "username": username,
+        "password": "SmokePass@1",
+    })
+    if not login.get("success"):
+        die(f"登录失败: {login.get('msg', '未知错误')}")
+    ok(f"登录成功 nickname={login['nickname']}")
+
+    room = post("/api/room/create", {
+        "roomName": f"smoke-room-{sfx}",
+        "creatorId": login["userId"],
+        "baseScore": 1,
+        "maxRounds": 4,
+    })
+    if not room.get("success"):
+        die(f"创建房间失败: {room.get('msg', '未知错误')}")
+    room_id = room["roomId"]
+    ok(f"创建房间成功 roomId={room_id}")
+
+    room_info = get(f"/api/room/{room_id}")
+    if not room_info.get("success"):
+        die(f"查询房间详情失败: {room_info.get('msg', '未知错误')}")
+    ok("房间详情查询成功")
+
+    room_list = get("/api/room/list")
+    if not room_list.get("success"):
+        die(f"查询房间列表失败: {room_list.get('msg', '未知错误')}")
+    if room_id not in [rm["roomId"] for rm in room_list.get("rooms", [])]:
+        die("新建房间未出现在房间列表")
+    ok("房间列表包含新建房间")
+
+    disband = delete(f"/api/room/{room_id}", {"creatorId": login["userId"]})
+    if not disband.get("success"):
+        die(f"解散房间失败: {disband.get('msg', '未知错误')}")
+    ok("房间解散成功")
+
+    print(green(bold("\n✓ 后端冒烟测试通过")))
+
+def cmd_cli_flow(_):
+    """cli-flow  一键执行注册登录+建房+4人入座准备+开局联调"""
+    _need_requests()
+    _need_ws()
+    print(bold("\n=== CLI 一键全流程联调 ===\n"))
+
+    sfx = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    users = []
+
+    for i in range(4):
+        username = f"flow_{i}_{sfx}"
+        nickname = f"流程玩家{i}_{sfx}"
+        reg = post("/api/user/register", {
+            "username": username,
+            "password": "FlowPass@1",
+            "nickname": nickname,
+        })
+        if not reg.get("success"):
+            die(f"注册失败 {username}: {reg.get('msg', '未知错误')}")
+        users.append({"userId": reg["userId"], "username": username, "nickname": nickname})
+
+    owner = users[0]
+    login = post("/api/user/login", {"username": owner["username"], "password": "FlowPass@1"})
+    if not login.get("success"):
+        die(f"房主登录失败: {login.get('msg', '未知错误')}")
+
+    save_session({"userId": login["userId"], "username": login["username"], "nickname": login["nickname"]})
+
+    room = post("/api/room/create", {
+        "roomName": f"cli-flow-{sfx}",
+        "creatorId": owner["userId"],
+        "baseScore": 1,
+        "maxRounds": 4,
+    })
+    if not room.get("success"):
+        die(f"建房失败: {room.get('msg', '未知错误')}")
+    room_id = room["roomId"]
+    update_session(currentRoomId=room_id)
+    ok(f"房间创建成功 roomId={room_id}")
+
+    all_msgs = {i: [] for i in range(4)}
+    clients = [None] * 4
+    lock = threading.Lock()
+
+    def make_ws(idx):
+        uid = users[idx]["userId"]
+
+        def on_open(ws):
+            clients[idx] = ws
+            _ws_send(ws, "C_JOIN_ROOM", room_id=room_id, user_id=uid, data={})
+            time.sleep(0.3)
+            _ws_send(ws, "C_CHOOSE_SEAT", room_id=room_id, user_id=uid, data={"seatIndex": idx})
+            time.sleep(0.3)
+            _ws_send(ws, "C_READY", room_id=room_id, user_id=uid, data={})
+
+        def on_msg(ws, raw):
+            d = json.loads(raw)
+            with lock:
+                all_msgs[idx].append(d.get("type", "?"))
+                if idx == 0 and d.get("type") == "S_ROOM_STATE" and isinstance(d.get("data"), dict):
+                    _sync_room_state(d["data"], owner["userId"])
+
+        def on_error(ws, e):
+            pass
+
+        def on_close(ws, *a):
+            pass
+
+        return websocket.WebSocketApp(
+            f"{WS_URL}?userId={uid}",
+            on_open=on_open,
+            on_message=on_msg,
+            on_error=on_error,
+            on_close=on_close,
+        )
+
+    threads = []
+    for i in range(4):
+        ws = make_ws(i)
+        t = threading.Thread(target=ws.run_forever, daemon=True)
+        t.start()
+        threads.append((ws, t))
+
+    info("等待 4 名玩家入房并准备...")
+    time.sleep(6)
+
+    if clients[0] is None:
+        for ws, _ in threads:
+            try:
+                ws.close()
+            except Exception:
+                pass
+        die("房主 WebSocket 未建立")
+
+    _ws_send(clients[0], "C_START_GAME", room_id=room_id, user_id=owner["userId"], data={})
+    info("房主已发送开始游戏")
+    time.sleep(4)
+
+    for ws, _ in threads:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+    owner_types = all_msgs[0]
+    if "S_GAME_START" in owner_types and "S_SELECT_MISS_SUIT" in owner_types:
+        ok(f"全流程联调成功 roomId={room_id}")
+    else:
+        die(f"全流程联调失败，房主消息={owner_types}")
 
 # ═══════════════════════════════════════════════════════════
 # 自动化测试套件
@@ -616,12 +1271,13 @@ def cmd_autotest(_):
 
     def friend_reject_test():
         # uid 再向另一用户发申请，uid3 拒绝
-        r3 = post("/api/user/register", {"username": f"w_{sfx}", "password": "pass", "nickname": f"w_{sfx}"})
-        if not r3.get("success"): return
+        r3 = post("/api/user/register", {"username": f"w_{sfx}", "password": "TestPass@1", "nickname": f"w_{sfx}"})
+        assert r3.get("success"), r3.get("msg")
         uid3 = r3["userId"]
-        post("/api/user/friend/add", {"userId": state["uid"], "friendId": uid3})
+        req = post("/api/user/friend/add", {"userId": state["uid"], "friendId": uid3})
+        assert req.get("success"), req.get("msg")
         reqs = get(f"/api/user/{uid3}/friend-requests").get("requests", [])
-        if not reqs: return
+        assert reqs, "uid3 应收到待处理申请"
         rid = reqs[0]["requestId"]
         r = post(f"/api/user/friend/reject/{rid}", params={"userId": uid3})
         assert r.get("success"), r.get("msg")
@@ -664,10 +1320,26 @@ COMMANDS = {
     "user-records":     cmd_user_records,
     # 房间
     "room-create":      cmd_room_create,
+    "room-join":        cmd_room_join,
+    "room-seat":        cmd_room_seat,
+    "room-stand":       cmd_room_stand,
+    "room-ready":       cmd_room_ready,
+    "room-start":       cmd_room_start,
+    "room-leave":       cmd_room_leave,
+    "room-shell":       cmd_room_shell,
     "room-list":        cmd_room_list,
     "room-info":        cmd_room_info,
     "room-records":     cmd_room_records,
     "room-disband":     cmd_room_disband,
+    # 对局
+    "game-miss":        cmd_game_miss,
+    "game-discard":     cmd_game_discard,
+    "game-pass":        cmd_game_pass,
+    "game-peng":        cmd_game_peng,
+    "game-gang":        cmd_game_gang,
+    "game-an-gang":     cmd_game_an_gang,
+    "game-hu":          cmd_game_hu,
+    "game-chat":        cmd_game_chat,
     # 好友
     "friend-add":       cmd_friend_add,
     "friend-list":      cmd_friend_list,
@@ -675,6 +1347,8 @@ COMMANDS = {
     "friend-accept":    cmd_friend_accept,
     "friend-reject":    cmd_friend_reject,
     # 测试
+    "backend-smoke":    cmd_backend_smoke,
+    "cli-flow":         cmd_cli_flow,
     "autotest":         cmd_autotest,
     "ws-echo":          cmd_ws_echo,
     "ws-game-test":     cmd_ws_game_test,
@@ -709,10 +1383,27 @@ def print_help():
 
 {bold('房间管理:')}
   room-create   <name> [base=1] [rounds=8]   创建房间
+    room-join     <roomId>                     进入房间大厅并记住当前房间
+    room-seat     <seatIndex> [roomId]         选座/换座
+    room-stand    [roomId]                     起身回大厅
+    room-ready    [roomId]                     切换准备状态
+    room-start    [roomId]                     房主强制开始
+    room-leave    [roomId]                     完全离开房间
+    room-shell    [roomId]                     持续连接的房间测试终端
   room-list                                  等待中的房间
   room-info     <roomId>                     房间详情
   room-records  <roomId>                     房间对局记录
   room-disband  <roomId>                     解散房间(需房主)
+
+{bold('对局动作:')}
+    game-miss      <0|1|2> [roomId]             提交定缺
+    game-discard   <tileId> [roomId]            出牌
+    game-pass      [roomId]                     跳过当前动作
+    game-peng      [roomId]                     碰牌
+    game-gang      [MING|BU] [tileId] [roomId]  杠牌（明杠/补杠）
+    game-an-gang   <tileId> [roomId]            暗杠
+    game-hu        [self|discard] [roomId]      胡牌（自摸/点炮）
+    game-chat      <message...> [roomId]        发送聊天
 
 {bold('好友系统:')}
   friend-add       <friendId>      发送好友申请
@@ -722,6 +1413,8 @@ def print_help():
   friend-reject    <requestId>     拒绝申请
 
 {bold('测试工具:')}
+    backend-smoke                    后端快速冒烟测试
+    cli-flow                         一键联调（注册登录+建房+4人入座+开局）
   autotest                         REST API 全套自动化测试
   ws-echo    <userId> <roomId>     WS 连接监听测试
   ws-game-test                     模拟4人入座+开局 (WS)
@@ -731,6 +1424,15 @@ def print_help():
   python mahjong_cli.py register alice Pass@123 爱丽丝
   python mahjong_cli.py login alice Pass@123
   python mahjong_cli.py room-create 欢乐局 1 8
+    python mahjong_cli.py room-join R123456
+    python mahjong_cli.py room-seat 0
+    python mahjong_cli.py room-ready
+    python mahjong_cli.py room-start
+    python mahjong_cli.py game-miss 2
+    python mahjong_cli.py game-discard 12
+    python mahjong_cli.py room-shell
+    python mahjong_cli.py cli-flow
+    python mahjong_cli.py backend-smoke
   python mahjong_cli.py autotest
 """)
 
