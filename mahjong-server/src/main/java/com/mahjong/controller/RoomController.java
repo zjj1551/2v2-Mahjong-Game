@@ -2,8 +2,12 @@ package com.mahjong.controller;
 
 import com.mahjong.model.Room;
 import com.mahjong.entity.GameRecordEntity;
+import com.mahjong.redis.RoomSnapshot;
+import com.mahjong.redis.RoomStateStore;
 import com.mahjong.service.GameRecordRepository;
 import com.mahjong.service.RoomService;
+import com.mahjong.redis.ReplayEvent;
+import com.mahjong.redis.ReplayStore;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,11 +23,18 @@ import java.util.Map;
 public class RoomController {
 
     private final RoomService roomService;
+    private final RoomStateStore roomStateStore;
     private final GameRecordRepository gameRecordRepository;
+    private final ReplayStore replayStore;
 
-    public RoomController(RoomService roomService, GameRecordRepository gameRecordRepository) {
+    public RoomController(RoomService roomService,
+            RoomStateStore roomStateStore,
+            GameRecordRepository gameRecordRepository,
+            ReplayStore replayStore) {
         this.roomService = roomService;
+        this.roomStateStore = roomStateStore;
         this.gameRecordRepository = gameRecordRepository;
+        this.replayStore = replayStore;
     }
 
     /**
@@ -55,6 +66,7 @@ public class RoomController {
         if (body.containsKey("enableFengYu")) {
             room.setEnableFengYu((Boolean) body.get("enableFengYu"));
         }
+        roomService.syncRoomSnapshot(room.getRoomId());
 
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
@@ -129,6 +141,7 @@ public class RoomController {
                 seat.put("team", p.getTeam());
                 seat.put("online", p.isOnline());
                 seat.put("ready", p.isReady());
+                seat.put("isBot", p.isBot());
             } else {
                 seat.put("occupied", false);
             }
@@ -178,5 +191,47 @@ public class RoomController {
             return m;
         }).toList();
         return ResponseEntity.ok(Map.of("success", true, "records", list));
+    }
+
+    /**
+     * 获取房间回放事件（来自缓存层：默认内存，可切 Redis）
+     * GET /api/room/{roomId}/replay?limit=2000
+     */
+    @GetMapping("/{roomId}/replay")
+    public ResponseEntity<Map<String, Object>> getRoomReplay(
+            @PathVariable String roomId,
+            @RequestParam(defaultValue = "2000") int limit) {
+        List<ReplayEvent> events = replayStore.list(roomId, limit);
+        List<Map<String, Object>> list = events.stream().map(e -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("timestamp", e.getTimestamp());
+            m.put("eventType", e.getEventType());
+            m.put("round", e.getRound());
+            m.put("payload", e.getPayload());
+            return m;
+        }).toList();
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "roomId", roomId,
+                "count", list.size(),
+                "events", list));
+    }
+
+    /**
+     * 获取缓存中的房间快照（用于 Redis 技术验证）
+     * GET /api/room/{roomId}/cached
+     */
+    @GetMapping("/{roomId}/cached")
+    public ResponseEntity<Map<String, Object>> getCachedRoom(@PathVariable String roomId) {
+        RoomSnapshot snapshot = roomStateStore.findRoom(roomId).orElse(null);
+        if (snapshot == null) {
+            return ResponseEntity.ok(Map.of("success", false, "msg", "缓存中无该房间"));
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("room", snapshot);
+        return ResponseEntity.ok(result);
     }
 }

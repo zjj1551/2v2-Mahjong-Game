@@ -64,8 +64,8 @@ class ApiService {
     }
 
     // --- 房间相关 ---
-    createRoom(creatorId, roomName, baseScore, maxRounds) {
-        return this.request('/room/create', 'POST', { creatorId, roomName, baseScore, maxRounds });
+    createRoom(creatorId, roomName, baseScore, maxRounds, allowChi = true) {
+        return this.request('/room/create', 'POST', { creatorId, roomName, baseScore, maxRounds, allowChi });
     }
 
     getRoomList() {

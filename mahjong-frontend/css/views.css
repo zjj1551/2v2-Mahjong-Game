@@ -18,6 +18,7 @@
     letter-spacing: 4px;
     margin-bottom: 0.5rem;
     background: linear-gradient(135deg, #fff 0%, var(--color-primary-dark) 100%);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -365,10 +366,30 @@
 }
 
 .game-console-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.game-console-action-group {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(253, 245, 230, 0.1);
+    border-radius: 12px;
+    padding: 10px;
+}
+
+.game-console-action-group-title {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.game-console-action-group-body {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 14px;
+    gap: 8px;
 }
 
 .game-console-action-btn {
@@ -395,6 +416,15 @@
     border-color: rgba(230, 57, 70, 0.45);
     color: #ffb3ba;
     background: rgba(230, 57, 70, 0.12);
+}
+
+.game-console-action-btn.disabled,
+.game-console-action-btn:disabled {
+    border-color: rgba(253, 245, 230, 0.1);
+    color: rgba(253, 245, 230, 0.45);
+    background: rgba(255, 255, 255, 0.03);
+    cursor: not-allowed;
+    transform: none;
 }
 
 .game-console-hand-panel {
@@ -515,9 +545,15 @@
 }
 
 @media (max-width: 900px) {
+    .game-console-actions {
+        grid-template-columns: 1fr;
+    }
+
     .game-console-modal {
         max-width: 96vw;
         padding: 18px;
+        max-height: 90vh;
+        overflow-y: auto;
     }
 
     .game-console-output {
@@ -1024,4 +1060,251 @@
 .table-container {
     overflow-y: auto;
     max-height: 50vh;
+}
+
+@media (max-width: 1280px) {
+    .lobby-content-tri {
+        grid-template-columns: 260px 1fr;
+        height: auto;
+        min-height: calc(100vh - 120px);
+    }
+
+    .column-right {
+        grid-column: 1 / span 2;
+    }
+
+    .leaderboard-full-panel {
+        min-height: 320px;
+    }
+}
+
+@media (max-width: 1024px) {
+    #view-lobby {
+        padding-top: 82px;
+    }
+
+    .lobby-header {
+        padding: 0 14px;
+        height: 62px;
+    }
+
+    .logo-mini {
+        font-size: 0.95rem;
+    }
+
+    .lobby-content-tri {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 0 12px 18px;
+        height: auto;
+    }
+
+    .column-right {
+        grid-column: auto;
+    }
+
+    .user-card,
+    .create-room-panel-horizontal,
+    .room-list-panel-expanded,
+    .leaderboard-full-panel {
+        padding: 1.1rem;
+    }
+
+    .horizontal-settings {
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+    .horizontal-settings .btn-primary {
+        width: 100%;
+    }
+
+    .room-prep-content {
+        flex-direction: column;
+        height: auto;
+        padding: 12px;
+        gap: 12px;
+        overflow-y: auto;
+    }
+
+    .prep-table-area,
+    .prep-chat-area {
+        width: 100%;
+    }
+
+    .prep-table-area {
+        min-height: 360px;
+        padding: 44px 8px 16px;
+    }
+
+    .prep-table-area h3 {
+        top: 10px;
+        font-size: 1.1rem;
+    }
+
+    .mahjong-table-topview {
+        width: min(76vw, 340px);
+        height: min(76vw, 340px);
+    }
+
+    .seat-avatar {
+        width: 52px;
+        height: 52px;
+        line-height: 52px;
+        font-size: 24px;
+    }
+
+    .seat-name {
+        font-size: 0.75rem;
+    }
+
+    .seat-bottom,
+    .seat-top {
+        left: 50%;
+    }
+
+    .seat-bottom {
+        bottom: -28px;
+    }
+
+    .seat-top {
+        top: -28px;
+    }
+
+    .seat-left,
+    .seat-right {
+        top: 50%;
+    }
+
+    .seat-left {
+        left: -20px;
+    }
+
+    .seat-right {
+        right: -20px;
+    }
+
+    .table-center {
+        padding: 16px;
+        gap: 10px;
+    }
+
+    .table-center .btn-primary {
+        font-size: 0.95rem;
+        padding: 10px 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .view-container {
+        padding: 1rem;
+    }
+
+    .auth-panel {
+        max-width: 94vw;
+        padding: 2rem 1rem;
+    }
+
+    .logo-title {
+        font-size: 2rem;
+        letter-spacing: 2px;
+    }
+
+    .lobby-header {
+        gap: 8px;
+    }
+
+    .header-right {
+        gap: 8px;
+    }
+
+    .user-summary {
+        padding: 4px 10px;
+        gap: 8px;
+    }
+
+    .nickname-mini {
+        max-width: 84px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .rooms-container-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .room-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .room-status {
+        width: 100%;
+    }
+
+    .modal-content {
+        width: 96%;
+        max-height: 88vh;
+        padding: 1rem;
+    }
+
+    .btn-feedback {
+        width: 52px;
+        height: 52px;
+        bottom: 16px;
+        right: 16px;
+        font-size: 1.25rem;
+    }
+
+    .btn-feedback::after {
+        display: none;
+    }
+
+    .game-console-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        font-size: 0.84rem;
+    }
+
+    .game-console-status-row {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .game-console-status-label {
+        min-width: auto;
+    }
+
+    .game-console-help {
+        gap: 6px;
+    }
+
+    .game-console-help span {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+
+    .game-console-input-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .game-console-input-row .btn-primary {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 1rem;
+    }
+
+    .chat-input-area form {
+        flex-direction: column;
+    }
+
+    .chat-input-area .btn-primary {
+        width: 100%;
+        padding: 10px 12px !important;
+    }
 }

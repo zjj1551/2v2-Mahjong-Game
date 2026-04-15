@@ -6,6 +6,7 @@ import com.mahjong.engine.WinChecker;
 import com.mahjong.entity.GameRecordEntity;
 import com.mahjong.entity.UserEntity;
 import com.mahjong.model.*;
+import com.mahjong.redis.ReplayStore;
 import com.mahjong.websocket.GameMessage;
 import com.mahjong.websocket.MessageType;
 
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -44,6 +46,7 @@ public class GameService {
     private final UserService userService;
     private final GameRecordRepository gameRecordRepository;
     private final UserRepository userRepository;
+    private final ReplayStore replayStore;
 
     /** roomId -> GameEngine 实例 */
     private final Map<String, GameEngine> engines = new ConcurrentHashMap<>();
@@ -59,15 +62,19 @@ public class GameService {
     private final Map<String, ScheduledFuture<?>> countdownTasks = new ConcurrentHashMap<>();
     /** 出牌等待超时秒数 */
     private static final int DISCARD_TIMEOUT_SECONDS = 20;
+    /** 人机动作延时（毫秒），用于模拟思考并让客户端先收到提示消息 */
+    private static final long BOT_ACTION_DELAY_MS = 650L;
     /** roomId -> 本局胡牌玩家座位（用于庄家轮转） */
     private final Map<String, Integer> lastWinnerSeatMap = new ConcurrentHashMap<>();
     @Autowired
     public GameService(RoomService roomService, UserService userService,
-            GameRecordRepository gameRecordRepository, UserRepository userRepository) {
+            GameRecordRepository gameRecordRepository, UserRepository userRepository,
+            ReplayStore replayStore) {
         this.roomService = roomService;
         this.userService = userService;
         this.gameRecordRepository = gameRecordRepository;
         this.userRepository = userRepository;
+        this.replayStore = replayStore;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -107,6 +114,7 @@ public class GameService {
 
         room.setStatus(Room.RoomStatus.PLAYING);
         room.incrementRound();
+        roomService.syncRoomSnapshot(roomId);
 
         GameEngine engine = new GameEngine(room);
         engines.put(roomId, engine);
@@ -116,6 +124,10 @@ public class GameService {
         List<List<Tile>> hands = engine.startNewRound(bankerSeat);
 
         log.info("游戏开始: roomId=" + roomId + ", round=" + room.getCurrentRound());
+        replayStore.append(roomId, "GAME_START", room.getCurrentRound(), Map.of(
+            "bankerSeat", bankerSeat,
+            "maxRounds", room.getMaxRounds(),
+            "baseScore", room.getBaseScore()));
 
         // 向每位玩家推送手牌（只发自己的牌）
         if (messageSender != null) {
@@ -139,6 +151,9 @@ public class GameService {
             messageSender.broadcast(room,
                     new GameMessage(MessageType.S_SELECT_MISS_SUIT, Map.of("message", "请选择定缺花色")));
         }
+
+        // 自动触发人机定缺
+        scheduleBotMissSuitSelection(roomId);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -174,7 +189,15 @@ public class GameService {
                 }
                 // 启动庄家出牌倒计时
                 startDiscardCountdown(roomId, bankerSeat);
+                if (isBotSeat(room, bankerSeat)) {
+                    scheduleBotDrawPhaseAction(roomId, bankerSeat, null);
+                }
             }
+        }
+
+        if (!allSelected) {
+            // 某个玩家已选完后，继续补齐其余人机定缺
+            scheduleBotMissSuitSelection(roomId);
         }
     }
 
@@ -191,6 +214,10 @@ public class GameService {
         Room room = engine.getRoom();
 
         GameEngine.DiscardResult result = engine.discard(seatIndex, tileId);
+        replayStore.append(roomId, "DISCARD", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", tileId,
+            "tileName", result.discardedTile.toString()));
 
         if (messageSender != null) {
             // 广播出牌
@@ -200,29 +227,36 @@ public class GameService {
             discardData.put("tileName", result.discardedTile.toString());
             messageSender.broadcast(room, new GameMessage(MessageType.S_DISCARD, discardData));
 
-            // 检查是否有人可以碰/杠/胡
+            // 检查是否有人可以碰/杠/胡/吃
             if (!result.canHuSeats.isEmpty() || !result.canGangSeats.isEmpty()
-                    || !result.canPengSeats.isEmpty()) {
+                    || !result.canPengSeats.isEmpty() || !result.canChiSeats.isEmpty()) {
                 // 记录等待响应
                 PendingAction pending = new PendingAction(roomId, seatIndex, tileId, result);
                 pendingActions.put(roomId, pending);
 
-                // 向有选项的玩家发送操作提示
+                // 向有选项的玩家发送操作提示（同一玩家可同时拥有多种动作）
                 Set<Integer> notifiedSeats = new HashSet<>();
-                for (int seat : result.canHuSeats) {
-                    sendActionOptions(room, seat, true, false, false);
-                    notifiedSeats.add(seat);
-                }
-                for (int seat : result.canGangSeats) {
-                    if (!notifiedSeats.contains(seat)) {
-                        sendActionOptions(room, seat, false, true, false);
-                        notifiedSeats.add(seat);
-                    }
-                }
-                for (int seat : result.canPengSeats) {
-                    if (!notifiedSeats.contains(seat)) {
-                        sendActionOptions(room, seat, false, false, true);
-                        notifiedSeats.add(seat);
+                notifiedSeats.addAll(result.canHuSeats);
+                notifiedSeats.addAll(result.canGangSeats);
+                notifiedSeats.addAll(result.canPengSeats);
+                notifiedSeats.addAll(result.canChiSeats);
+
+                for (int seat : notifiedSeats) {
+                    sendActionOptions(
+                            room,
+                            seat,
+                            result.canHuSeats.contains(seat),
+                            result.canGangSeats.contains(seat),
+                            result.canPengSeats.contains(seat),
+                            result.canChiSeats.contains(seat),
+                            result.chiOptionsBySeat.getOrDefault(seat, List.of()));
+                    if (isBotSeat(room, seat)) {
+                        scheduleBotReaction(roomId, seat,
+                                result.canHuSeats.contains(seat),
+                                result.canGangSeats.contains(seat),
+                                result.canPengSeats.contains(seat),
+                                result.canChiSeats.contains(seat),
+                                result.chiOptionsBySeat.getOrDefault(seat, List.of()));
                     }
                 }
             } else {
@@ -252,6 +286,10 @@ public class GameService {
 
         engine.peng(seatIndex, tileId, fromSeat);
         pendingActions.remove(roomId);
+        replayStore.append(roomId, "PENG", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", tileId,
+            "fromSeat", fromSeat));
 
         if (messageSender != null) {
             Map<String, Object> pengData = new HashMap<>();
@@ -262,6 +300,63 @@ public class GameService {
 
             // 碰完后玩家需要出牌，启动倒计时
             startDiscardCountdown(roomId, seatIndex);
+            if (isBotSeat(room, seatIndex)) {
+                scheduleBotDrawPhaseAction(roomId, seatIndex, null);
+            }
+        }
+    }
+
+    /**
+     * 玩家声明吃牌
+     */
+    public void chi(String roomId, int seatIndex, List<Integer> consumeTileIds) {
+        cancelCountdown(roomId);
+        GameEngine engine = getEngine(roomId);
+        Room room = engine.getRoom();
+        GameState state = engine.getState();
+
+        PendingAction pending = pendingActions.get(roomId);
+        if (pending == null) {
+            throw new IllegalStateException("当前没有可响应的打牌动作");
+        }
+        if (!pending.discardResult.canChiSeats.contains(seatIndex)) {
+            throw new IllegalStateException("当前玩家不可吃牌");
+        }
+
+        int tileId = state.getLastDiscardedTile().getTileId();
+        int fromSeat = state.getLastDiscardSeat();
+
+        List<Integer> resolvedConsume = consumeTileIds;
+        if (resolvedConsume == null || resolvedConsume.size() != 2) {
+            List<List<Integer>> options = pending.discardResult.chiOptionsBySeat.getOrDefault(seatIndex, List.of());
+            if (options.size() == 1) {
+                resolvedConsume = options.get(0);
+            } else {
+                throw new IllegalArgumentException("存在多个吃牌组合，请明确传入 consumeTileIds");
+            }
+        }
+
+        engine.chi(seatIndex, tileId, fromSeat, resolvedConsume);
+        pendingActions.remove(roomId);
+        replayStore.append(roomId, "CHI", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", tileId,
+            "fromSeat", fromSeat,
+            "consumeTileIds", resolvedConsume));
+
+        if (messageSender != null) {
+            Map<String, Object> chiData = new HashMap<>();
+            chiData.put("seatIndex", seatIndex);
+            chiData.put("tileId", tileId);
+            chiData.put("fromSeat", fromSeat);
+            chiData.put("consumeTileIds", resolvedConsume);
+            messageSender.broadcast(room, new GameMessage(MessageType.S_CHI, chiData));
+
+            // 吃完后玩家需要出牌，启动倒计时
+            startDiscardCountdown(roomId, seatIndex);
+            if (isBotSeat(room, seatIndex)) {
+                scheduleBotDrawPhaseAction(roomId, seatIndex, null);
+            }
         }
     }
 
@@ -283,6 +378,11 @@ public class GameService {
 
         engine.mingGang(seatIndex, tileId, fromSeat);
         pendingActions.remove(roomId);
+        replayStore.append(roomId, "GANG", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", tileId,
+            "gangType", "MING",
+            "fromSeat", fromSeat));
 
         if (messageSender != null) {
             Map<String, Object> gangData = new HashMap<>();
@@ -305,6 +405,10 @@ public class GameService {
         Room room = engine.getRoom();
 
         engine.anGang(seatIndex, tileId);
+        replayStore.append(roomId, "GANG", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", tileId,
+            "gangType", "AN"));
 
         if (messageSender != null) {
             Map<String, Object> gangData = new HashMap<>();
@@ -327,6 +431,10 @@ public class GameService {
         Room room = engine.getRoom();
 
         List<Integer> qiangGangHuSeats = engine.buGang(seatIndex, tileId);
+        replayStore.append(roomId, "GANG", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", tileId,
+            "gangType", "BU"));
 
         if (messageSender != null) {
             Map<String, Object> gangData = new HashMap<>();
@@ -339,7 +447,7 @@ public class GameService {
         if (!qiangGangHuSeats.isEmpty()) {
             // 有人可抢杠胡，等待响应
             for (int seat : qiangGangHuSeats) {
-                sendActionOptions(room, seat, true, false, false);
+                sendActionOptions(room, seat, true, false, false, false, List.of());
             }
         } else {
             // 无人抢杠，补杠后摸牌
@@ -384,6 +492,15 @@ public class GameService {
         WinChecker.WinResult winResult = WinChecker.checkWin(huPlayer, winTile);
         int score = engine.hu(seatIndex, winTile, isSelfDraw, isGangShang, isQiangGang, fromSeat);
         pendingActions.remove(roomId);
+
+        Map<String, Object> huReplay = new HashMap<>();
+        huReplay.put("seatIndex", seatIndex);
+        huReplay.put("winTile", tileToMap(winTile));
+        huReplay.put("isSelfDraw", isSelfDraw);
+        huReplay.put("score", score);
+        huReplay.put("fromSeat", fromSeat);
+        huReplay.put("winType", buildWinTypeDesc(winResult, isSelfDraw));
+        replayStore.append(roomId, "HU", room.getCurrentRound(), huReplay);
 
         if (messageSender != null) {
             Map<String, Object> huData = new HashMap<>();
@@ -435,10 +552,14 @@ public class GameService {
         allPendingSeats.addAll(result.canHuSeats);
         allPendingSeats.addAll(result.canGangSeats);
         allPendingSeats.addAll(result.canPengSeats);
+        allPendingSeats.addAll(result.canChiSeats);
 
         if (pending.passedSeats.containsAll(allPendingSeats)) {
             // 所有人都跳过，轮到下家摸牌
             pendingActions.remove(roomId);
+            replayStore.append(roomId, "PASS_ALL", getEngine(roomId).getRoom().getCurrentRound(), Map.of(
+                    "fromSeat", pending.fromSeat,
+                    "respondedSeats", new ArrayList<>(pending.passedSeats)));
             GameEngine engine = getEngine(roomId);
             int nextSeat = engine.nextActiveSeat(pending.fromSeat);
             if (nextSeat >= 0) {
@@ -520,9 +641,17 @@ public class GameService {
 
         if (drawResult.isExhausted) {
             // 荒庄（流局）
+            replayStore.append(roomId, "ROUND_EXHAUSTED", room.getCurrentRound(), Map.of(
+                "remaining", engine.getState().remainingWall()));
             handleRoundEnd(roomId);
             return;
         }
+
+        replayStore.append(roomId, "DRAW", room.getCurrentRound(), Map.of(
+            "seatIndex", seatIndex,
+            "tileId", drawResult.drawnTile.getTileId(),
+            "tileName", drawResult.drawnTile.toString(),
+            "remaining", engine.getState().remainingWall()));
 
         if (messageSender != null) {
             Player player = room.getPlayer(seatIndex);
@@ -557,6 +686,9 @@ public class GameService {
 
             // 摸牌后启动出牌倒计时
             startDiscardCountdown(roomId, seatIndex);
+            if (player.isBot()) {
+                scheduleBotDrawPhaseAction(roomId, seatIndex, drawResult);
+            }
         }
     }
 
@@ -564,7 +696,8 @@ public class GameService {
      * 向玩家发送操作选项提示
      */
     private void sendActionOptions(Room room, int seatIndex,
-            boolean canHu, boolean canGang, boolean canPeng) {
+            boolean canHu, boolean canGang, boolean canPeng, boolean canChi,
+            List<List<Integer>> chiOptions) {
         if (messageSender == null)
             return;
         Player player = room.getPlayer(seatIndex);
@@ -580,11 +713,173 @@ public class GameService {
             actions.add("GANG");
         if (canPeng)
             actions.add("PENG");
+        if (canChi)
+            actions.add("CHI");
         actions.add("PASS");
         data.put("actions", actions);
+        if (canChi && chiOptions != null && !chiOptions.isEmpty()) {
+            List<Map<String, Object>> optionsPayload = new ArrayList<>();
+            for (List<Integer> option : chiOptions) {
+                optionsPayload.add(Map.of("consumeTileIds", option));
+            }
+            data.put("chiOptions", optionsPayload);
+        }
 
         messageSender.sendToSession(player.getSessionId(),
                 new GameMessage(MessageType.S_ACTION_OPTIONS, data));
+    }
+
+    private boolean isBotSeat(Room room, int seatIndex) {
+        Player player = room.getPlayer(seatIndex);
+        return player != null && player.isBot();
+    }
+
+    private void scheduleBotMissSuitSelection(String roomId) {
+        GameEngine engine = engines.get(roomId);
+        if (engine == null) {
+            return;
+        }
+        if (engine.getState().getPhase() != GameState.Phase.SELECTING_MISS_SUIT) {
+            return;
+        }
+        Room room = engine.getRoom();
+        for (int seat = 0; seat < 4; seat++) {
+            Player bot = room.getPlayer(seat);
+            if (bot == null || !bot.isBot() || bot.getMissSuit() >= 0) {
+                continue;
+            }
+            final int botSeat = seat;
+            scheduleBotTask(roomId, () -> {
+                GameEngine currentEngine = engines.get(roomId);
+                if (currentEngine == null) {
+                    return;
+                }
+                if (currentEngine.getState().getPhase() != GameState.Phase.SELECTING_MISS_SUIT) {
+                    return;
+                }
+                Player currentBot = currentEngine.getRoom().getPlayer(botSeat);
+                if (currentBot == null || !currentBot.isBot() || currentBot.getMissSuit() >= 0) {
+                    return;
+                }
+                int missSuit = chooseBotMissSuit(currentBot);
+                selectMissSuit(roomId, botSeat, missSuit);
+            });
+        }
+    }
+
+    private int chooseBotMissSuit(Player bot) {
+        int[] suitCounts = new int[] {0, 0, 0};
+        for (Tile tile : bot.getHandTiles()) {
+            int suit = tile.getType().getIndex();
+            if (suit >= 0 && suit < 3) {
+                suitCounts[suit]++;
+            }
+        }
+        int min = Math.min(suitCounts[0], Math.min(suitCounts[1], suitCounts[2]));
+        List<Integer> candidates = new ArrayList<>();
+        for (int suit = 0; suit < 3; suit++) {
+            if (suitCounts[suit] == min) {
+                candidates.add(suit);
+            }
+        }
+        int idx = ThreadLocalRandom.current().nextInt(candidates.size());
+        return candidates.get(idx);
+    }
+
+    private void scheduleBotReaction(String roomId, int seatIndex,
+            boolean canHu, boolean canGang, boolean canPeng, boolean canChi,
+            List<List<Integer>> chiOptions) {
+        scheduleBotTask(roomId, () -> {
+            PendingAction pending = pendingActions.get(roomId);
+            if (pending == null) {
+                return;
+            }
+            if (canHu && pending.discardResult.canHuSeats.contains(seatIndex)) {
+                hu(roomId, seatIndex, false);
+                return;
+            }
+            if (canGang && pending.discardResult.canGangSeats.contains(seatIndex)) {
+                mingGang(roomId, seatIndex);
+                return;
+            }
+            if (canPeng && pending.discardResult.canPengSeats.contains(seatIndex)) {
+                peng(roomId, seatIndex);
+                return;
+            }
+            if (canChi && pending.discardResult.canChiSeats.contains(seatIndex)) {
+                List<Integer> consume = (chiOptions == null || chiOptions.isEmpty()) ? null : chiOptions.get(0);
+                chi(roomId, seatIndex, consume);
+                return;
+            }
+            pass(roomId, seatIndex);
+        });
+    }
+
+    private void scheduleBotDrawPhaseAction(String roomId, int seatIndex, GameEngine.DrawResult drawResult) {
+        scheduleBotTask(roomId, () -> {
+            GameEngine engine = engines.get(roomId);
+            if (engine == null) {
+                return;
+            }
+            Room room = engine.getRoom();
+            Player bot = room.getPlayer(seatIndex);
+            if (bot == null || !bot.isBot() || bot.isHu()) {
+                return;
+            }
+            if (engine.getState().getAwaitingSeat() != seatIndex) {
+                return;
+            }
+
+            if (drawResult != null) {
+                if (drawResult.canZiMo) {
+                    hu(roomId, seatIndex, true);
+                    return;
+                }
+                if (!drawResult.canAnGangIds.isEmpty()) {
+                    anGang(roomId, seatIndex, drawResult.canAnGangIds.get(0));
+                    return;
+                }
+                if (drawResult.canBuGang) {
+                    buGang(roomId, seatIndex, drawResult.buGangTileId);
+                    return;
+                }
+            }
+
+            int discardTileId = chooseBotDiscardTile(bot);
+            discard(roomId, seatIndex, discardTileId);
+        });
+    }
+
+    private int chooseBotDiscardTile(Player bot) {
+        List<Tile> hand = bot.getHandTiles();
+        if (hand == null || hand.isEmpty()) {
+            throw new IllegalStateException("人机手牌为空，无法出牌");
+        }
+
+        List<Tile> missSuitTiles = new ArrayList<>();
+        int missSuit = bot.getMissSuit();
+        if (missSuit >= 0 && missSuit <= 2) {
+            for (Tile tile : hand) {
+                if (tile.getType().getIndex() == missSuit) {
+                    missSuitTiles.add(tile);
+                }
+            }
+        }
+
+        List<Tile> candidates = missSuitTiles.isEmpty() ? hand : missSuitTiles;
+        int idx = ThreadLocalRandom.current().nextInt(candidates.size());
+        return candidates.get(idx).getTileId();
+    }
+
+    private void scheduleBotTask(String roomId, Runnable action) {
+        long delay = BOT_ACTION_DELAY_MS + ThreadLocalRandom.current().nextLong(0, 350);
+        scheduler.schedule(() -> {
+            try {
+                action.run();
+            } catch (Exception e) {
+                log.fine("人机动作取消: roomId=" + roomId + ", reason=" + e.getMessage());
+            }
+        }, delay, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -594,6 +889,9 @@ public class GameService {
         cancelCountdown(roomId);
         GameEngine engine = getEngine(roomId);
         Room room = engine.getRoom();
+
+        replayStore.append(roomId, "ROUND_END", room.getCurrentRound(), Map.of(
+            "round", room.getCurrentRound()));
 
         if (messageSender != null) {
             // 广播本局结算
@@ -622,9 +920,14 @@ public class GameService {
         } else {
             // 下一局
             room.incrementRound();
+            roomService.syncRoomSnapshot(roomId);
             // 庄家轮转：胡牌则胡牌者为庄；荒庄则保留当前庄家
             int bankerSeat = lastWinnerSeatMap.getOrDefault(roomId, engine.getState().getBankerSeat());
             List<List<Tile>> hands = engine.startNewRound(bankerSeat);
+
+            replayStore.append(roomId, "ROUND_START", room.getCurrentRound(), Map.of(
+                    "bankerSeat", bankerSeat,
+                    "round", room.getCurrentRound()));
 
             if (messageSender != null) {
                 for (int seat = 0; seat < 4; seat++) {
@@ -643,6 +946,8 @@ public class GameService {
                 messageSender.broadcast(room,
                         new GameMessage(MessageType.S_SELECT_MISS_SUIT, Map.of("message", "请选择定缺花色")));
             }
+
+            scheduleBotMissSuitSelection(roomId);
         }
     }
 
@@ -654,6 +959,7 @@ public class GameService {
         GameEngine engine = getEngine(roomId);
         Room room = engine.getRoom();
         room.setStatus(Room.RoomStatus.FINISHED);
+        roomService.syncRoomSnapshot(roomId);
 
         // 更新用户战绩
         for (int i = 0; i < 4; i++) {
@@ -670,23 +976,28 @@ public class GameService {
             });
         }
 
+        List<Map<String, Object>> finalScores = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Player p = room.getPlayer(i);
+            if (p == null)
+                continue;
+            Map<String, Object> ps = new HashMap<>();
+            ps.put("seatIndex", i);
+            ps.put("userId", p.getUserId());
+            ps.put("nickname", p.getNickname());
+            ps.put("totalScore", p.getScore());
+            finalScores.add(ps);
+        }
+
         if (messageSender != null) {
             Map<String, Object> overData = new HashMap<>();
-            List<Map<String, Object>> finalScores = new ArrayList<>();
-            for (int i = 0; i < 4; i++) {
-                Player p = room.getPlayer(i);
-                if (p == null)
-                    continue;
-                Map<String, Object> ps = new HashMap<>();
-                ps.put("seatIndex", i);
-                ps.put("userId", p.getUserId());
-                ps.put("nickname", p.getNickname());
-                ps.put("totalScore", p.getScore());
-                finalScores.add(ps);
-            }
             overData.put("players", finalScores);
             messageSender.broadcast(room, new GameMessage(MessageType.S_GAME_OVER, overData));
         }
+
+        Map<String, Object> replayData = new HashMap<>();
+        replayData.put("players", finalScores);
+        replayStore.append(roomId, "GAME_OVER", room.getCurrentRound(), replayData);
 
         // 清理引擎
         engines.remove(roomId);
@@ -747,6 +1058,15 @@ public class GameService {
         record.setScoreSnapshot(snapshot.toString());
 
         gameRecordRepository.save(record);
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("roundNum", room.getCurrentRound());
+        summary.put("winnerId", winner.getUserId());
+        summary.put("loserId", loser != null ? loser.getUserId() : null);
+        summary.put("score", score);
+        summary.put("winType", buildWinTypeDesc(winResult, isSelfDraw));
+        summary.put("scoreSnapshot", snapshot.toString());
+        replayStore.append(room.getRoomId(), "ROUND_SUMMARY", room.getCurrentRound(), summary);
     }
 
     /**

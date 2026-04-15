@@ -187,8 +187,24 @@ public class GameEngine {
             }
         }
 
+        // 吃牌仅下家可用，且受房间配置开关控制
+        if (room.isAllowChi()) {
+            int nextSeat = nextActiveSeat(seatIndex);
+            if (nextSeat >= 0) {
+                Player nextPlayer = room.getPlayer(nextSeat);
+                if (nextPlayer != null && !nextPlayer.isHu()) {
+                    List<List<Integer>> chiOptions = WinChecker.getChiOptions(nextPlayer, discarded);
+                    if (!chiOptions.isEmpty()) {
+                        result.canChiSeats.add(nextSeat);
+                        result.chiOptionsBySeat.put(nextSeat, chiOptions);
+                    }
+                }
+            }
+        }
+
         // 如果没有人可以碰/杠/胡，自动轮到下家摸牌
-        if (result.canHuSeats.isEmpty() && result.canGangSeats.isEmpty() && result.canPengSeats.isEmpty()) {
+        if (result.canHuSeats.isEmpty() && result.canGangSeats.isEmpty()
+                && result.canPengSeats.isEmpty() && result.canChiSeats.isEmpty()) {
             result.nextDrawSeat = nextActiveSeat(seatIndex);
         }
 
@@ -282,6 +298,50 @@ public class GameEngine {
         state.setAwaitingSeat(seatIndex); // 碰完后轮到该玩家出牌
 
         log.info("玩家 seat=" + seatIndex + " 碰牌: tileId=" + tileId + ", from=" + fromSeat);
+    }
+
+    /**
+     * 玩家声明吃牌（必须提供两张手牌 tileId 组成顺子）
+     */
+    public void chi(int seatIndex, int tileId, int fromSeat, List<Integer> consumeTileIds) {
+        validatePlaying();
+        int legalNextSeat = nextActiveSeat(fromSeat);
+        if (seatIndex != legalNextSeat) {
+            throw new IllegalStateException("只有下家可以吃牌");
+        }
+        if (consumeTileIds == null || consumeTileIds.size() != 2) {
+            throw new IllegalArgumentException("吃牌必须提供两张 consumeTileIds");
+        }
+
+        Player player = room.getPlayer(seatIndex);
+        if (player == null || player.isHu()) {
+            throw new IllegalStateException("玩家不存在或已胡牌");
+        }
+
+        List<List<Integer>> options = WinChecker.getChiOptions(player, state.getLastDiscardedTile());
+        boolean matched = options.stream().anyMatch(option -> sameTileIdPair(option, consumeTileIds));
+        if (!matched) {
+            throw new IllegalStateException("该吃牌组合不合法");
+        }
+
+        List<Tile> removed = new ArrayList<>();
+        removed.addAll(player.removeTiles(consumeTileIds.get(0), 1));
+        removed.addAll(player.removeTiles(consumeTileIds.get(1), 1));
+        removed.add(state.getLastDiscardedTile());
+        removed.sort((a, b) -> Integer.compare(a.getTileId(), b.getTileId()));
+
+        player.addMeld(new Meld(Meld.MeldType.CHI, removed, fromSeat));
+        state.setCurrentSeat(seatIndex);
+        state.setAwaitingSeat(seatIndex); // 吃完后轮到该玩家出牌
+
+        log.info("玩家 seat=" + seatIndex + " 吃牌: tileId=" + tileId + ", consume=" + consumeTileIds + ", from=" + fromSeat);
+    }
+
+    private boolean sameTileIdPair(List<Integer> left, List<Integer> right) {
+        if (left == null || right == null || left.size() != 2 || right.size() != 2) return false;
+        int l1 = left.get(0), l2 = left.get(1);
+        int r1 = right.get(0), r2 = right.get(1);
+        return (l1 == r1 && l2 == r2) || (l1 == r2 && l2 == r1);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -478,6 +538,8 @@ public class GameEngine {
         public List<Integer> canHuSeats = new ArrayList<>();
         public List<Integer> canGangSeats = new ArrayList<>();
         public List<Integer> canPengSeats = new ArrayList<>();
+        public List<Integer> canChiSeats = new ArrayList<>();
+        public java.util.Map<Integer, List<List<Integer>>> chiOptionsBySeat = new java.util.HashMap<>();
         /** 如果没有人能碰/杠/胡，下一个摸牌的座位号 */
         public int nextDrawSeat = -1;
     }

@@ -33,6 +33,10 @@ class RoomController {
         if (btnStart) {
             btnStart.disabled = true;
         }
+        const btnAddBot = document.getElementById('btn-add-bot');
+        if (btnAddBot) {
+            btnAddBot.disabled = true;
+        }
 
         document.getElementById('chat-message-list').innerHTML =
             '<div class="chat-msg system" style="color:var(--color-primary); text-align:center; font-size:0.9em;">--- 欢迎来到蜀山论剑 ---</div>';
@@ -144,9 +148,10 @@ class RoomController {
 
             if (p) {
                 // 已有人
-                nameEl.innerText = p.nickname;
+                const displayName = p.isBot ? `${p.nickname} [AI]` : p.nickname;
+                nameEl.innerText = displayName;
                 nameEl.style.color = p.ready ? 'var(--color-success)' : '#fff';
-                avatarEl.innerText = p.nickname.charAt(0).toUpperCase();
+                avatarEl.innerText = p.isBot ? 'AI' : p.nickname.charAt(0).toUpperCase();
                 
                 // 状态表现
                 if (p.ready) {
@@ -179,6 +184,7 @@ class RoomController {
     updateActionButtons(data) {
         const btnReady = document.getElementById('btn-ready');
         const btnStart = document.getElementById('btn-start-game');
+        const btnAddBot = document.getElementById('btn-add-bot');
         
         if (this.mySeatIndex === -1) {
             btnReady.disabled = true;
@@ -197,6 +203,12 @@ class RoomController {
             const gameNotStarted = this.roomStatus !== 'PLAYING';
             const canStart = this.isCreator && allReady && gameNotStarted;
             btnStart.disabled = !canStart;
+        }
+
+        if (btnAddBot) {
+            const occupiedSeats = this.seats.filter(Boolean).length;
+            const gameNotStarted = this.roomStatus !== 'PLAYING';
+            btnAddBot.disabled = !(this.isCreator && gameNotStarted && occupiedSeats < 4);
         }
 
         // 房主特权：解散按钮 (如果需要动态添加)
@@ -245,6 +257,19 @@ class RoomController {
         }
 
         window.lobby.sendWsMessage('C_START_GAME', this.currentRoomId, {});
+    }
+
+    addBot() {
+        if (!this.isCreator) {
+            app.showError('只有房主可以添加人机');
+            return;
+        }
+        const occupiedSeats = this.seats.filter(Boolean).length;
+        if (occupiedSeats >= 4) {
+            app.showToast('房间已满，无法添加人机');
+            return;
+        }
+        window.lobby.sendWsMessage('C_ADD_BOT', this.currentRoomId, {});
     }
 
     // --- 聊天系统 ---

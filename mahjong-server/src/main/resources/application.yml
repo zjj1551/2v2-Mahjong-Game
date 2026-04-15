@@ -23,7 +23,20 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      timeout: 3000ms
+
 logging:
   level:
     com.mahjong: DEBUG
     org.springframework.web.socket: INFO
+
+app:
+  redis:
+    enabled: true
+    key-prefix-room: "mahjong:room:"
+    key-prefix-replay: "mahjong:replay:"
+    replay-max-events: 5000

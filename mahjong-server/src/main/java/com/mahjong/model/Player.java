@@ -37,13 +37,20 @@ public class Player {
     private boolean online = true;
     /** 是否已准备（等待游戏开始阶段） */
     private boolean ready = false;
+    /** 是否人机玩家 */
+    private boolean bot = false;
 
     public Player(int seatIndex, long userId, String nickname, String sessionId) {
+        this(seatIndex, userId, nickname, sessionId, false);
+    }
+
+    public Player(int seatIndex, long userId, String nickname, String sessionId, boolean bot) {
         this.seatIndex = seatIndex;
         this.userId = userId;
         this.nickname = nickname;
         this.sessionId = sessionId;
         this.team = seatIndex % 2; // 0、2号座位同队；1、3号座位同队
+        this.bot = bot;
     }
 
     // ─── 手牌操作 ─────────────────────────────────────────────
@@ -194,6 +201,14 @@ public class Player {
 
     public void setReady(boolean ready) {
         this.ready = ready;
+    }
+
+    public boolean isBot() {
+        return bot;
+    }
+
+    public void setBot(boolean bot) {
+        this.bot = bot;
     }
 
     public void addMeld(Meld meld) {

@@ -14,8 +14,11 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,6 +40,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
     private final RoomService roomService;
     private final GameService gameService;
     private final UserService userService;
+    private static final AtomicLong BOT_USER_ID_SEQ = new AtomicLong(900000000L);
 
     /** sessionId -> WebSocketSession 映射 */
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
@@ -116,6 +120,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
                 seat.put("team", p.getTeam());
                 seat.put("online", p.isOnline());
                 seat.put("ready", p.isReady());
+                seat.put("isBot", p.isBot());
             } else {
                 seat.put("occupied", false);
             }
@@ -223,9 +228,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
                 case C_DISBAND_ROOM -> handleDisbandRoom(session, roomId, userId);
                 case C_INVITE_FRIEND -> handleInviteFriend(session, roomId, userId, data);
                 case C_START_GAME -> handleStartGame(session, roomId, userId);
+                case C_ADD_BOT -> handleAddBot(session, roomId, userId, data);
                 case C_SELECT_MISS_SUIT -> handleSelectMissSuit(roomId, sessionId, data);
                 case C_DISCARD -> handleDiscard(roomId, sessionId, data);
                 case C_PENG -> handlePeng(roomId, sessionId);
+                case C_CHI -> handleChi(roomId, sessionId, data);
                 case C_GANG -> handleGang(roomId, sessionId, data);
                 case C_AN_GANG -> handleAnGang(roomId, sessionId, data);
                 case C_HU -> handleHu(roomId, sessionId, data);
@@ -326,6 +333,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
                 existingPlayer.setOnline(true);
                 roomService.registerSession(userId, sessionId);
                 roomService.bindSessionRoom(sessionId, roomId);
+                roomService.syncRoomSnapshot(roomId);
                 broadcastToRoom(room, new GameMessage(MessageType.S_PLAYER_STATUS,
                         Map.of("seatIndex", existingPlayer.getSeatIndex(), "online", true,
                                 "nickname", existingPlayer.getNickname())));
@@ -335,6 +343,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
             room.enterLobby(userId, userEntity.getNickname());
             roomService.registerSession(userId, sessionId);
             roomService.bindSessionRoom(sessionId, roomId);
+            roomService.syncRoomSnapshot(roomId);
             // 推送当前公开局面给观战者
             gameService.pushSpectateState(roomId, sessionId);
             log.info("观战者加入: userId=" + userId + ", roomId=" + roomId);
@@ -347,6 +356,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
             existingPlayer.setSessionId(sessionId);
             existingPlayer.setOnline(true);
             roomService.bindSessionRoom(sessionId, roomId);
+            roomService.syncRoomSnapshot(roomId);
             broadcastToRoom(room, new GameMessage(MessageType.S_PLAYER_STATUS,
                     Map.of("seatIndex", existingPlayer.getSeatIndex(), "online", true,
                             "nickname", existingPlayer.getNickname())));
@@ -358,6 +368,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
         if (room.getLobbyUsers().containsKey(userId)) {
             roomService.registerSession(userId, sessionId);
             roomService.bindSessionRoom(sessionId, roomId);
+            roomService.syncRoomSnapshot(roomId);
             broadcastRoomState(room);
             return;
         }
@@ -371,6 +382,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
 
         roomService.registerSession(userId, sessionId);
         roomService.bindSessionRoom(sessionId, roomId);
+        roomService.syncRoomSnapshot(roomId);
 
         log.info("玩家进入大厅: userId=" + userId + ", roomId=" + roomId);
         broadcastRoomState(room);
@@ -405,6 +417,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
         }
 
         log.info("玩家入座: userId=" + userId + ", roomId=" + roomId + ", seat=" + result);
+        roomService.syncRoomSnapshot(roomId);
 
         // 广播座位变动
         Player p = room.getPlayer(result);
@@ -435,6 +448,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
         int oldSeat = p.getSeatIndex();
         String nickname = p.getNickname();
         room.leaveSeat(userId);
+        roomService.syncRoomSnapshot(roomId);
 
         broadcastToRoom(room, new GameMessage(MessageType.S_SEAT_CHANGED,
                 Map.of("seatIndex", oldSeat, "action", "STAND",
@@ -463,6 +477,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
 
         boolean newReady = !p.isReady(); // 切换
         room.setReady(userId, newReady);
+        roomService.syncRoomSnapshot(roomId);
 
         broadcastToRoom(room, new GameMessage(MessageType.S_READY_CHANGED,
                 Map.of("seatIndex", p.getSeatIndex(), "userId", userId, "ready", newReady)));
@@ -513,6 +528,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
             }
             if (newCreatorId != null) {
                 room.setCreatorId(newCreatorId);
+                roomService.syncRoomSnapshot(roomId);
                 String newCreatorName = room.getPlayerByUserId(newCreatorId) != null ? 
                     room.getPlayerByUserId(newCreatorId).getNickname() : room.getLobbyUsers().get(newCreatorId);
                 broadcastToRoom(room, new GameMessage(MessageType.S_CHAT, Map.of(
@@ -634,6 +650,90 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
     }
 
     /**
+     * 房主添加人机。
+     * data: {seatIndex?: 0-3}
+     */
+    private void handleAddBot(WebSocketSession session, String roomId, Long userId, JSONObject data) {
+        if (roomId == null || userId == null) {
+            sendError(session, 1090, "需要 roomId 和 userId");
+            return;
+        }
+        Room room = roomService.getRoom(roomId);
+        if (room == null) {
+            sendError(session, 1091, "房间不存在");
+            return;
+        }
+        if (room.getCreatorId() != userId) {
+            sendError(session, 1092, "只有房主可以添加人机");
+            return;
+        }
+        if (room.getStatus() == Room.RoomStatus.PLAYING || room.getStatus() == Room.RoomStatus.FINISHED) {
+            sendError(session, 1093, "当前房间状态不允许添加人机");
+            return;
+        }
+        if (room.isFull()) {
+            sendError(session, 1094, "房间已满");
+            return;
+        }
+
+        Integer preferredSeat = null;
+        if (data != null && data.containsKey("seatIndex")) {
+            preferredSeat = data.getInteger("seatIndex");
+            if (preferredSeat == null || preferredSeat < 0 || preferredSeat > 3) {
+                sendError(session, 1095, "seatIndex 必须在 0-3");
+                return;
+            }
+            if (room.getPlayer(preferredSeat) != null) {
+                sendError(session, 1096, "目标座位已被占用");
+                return;
+            }
+        }
+
+        int seat = preferredSeat != null ? preferredSeat : -1;
+        if (seat < 0) {
+            for (int i = 0; i < 4; i++) {
+                if (room.getPlayer(i) == null) {
+                    seat = i;
+                    break;
+                }
+            }
+        }
+        if (seat < 0) {
+            sendError(session, 1097, "没有可用空位");
+            return;
+        }
+
+        long botId = BOT_USER_ID_SEQ.incrementAndGet();
+        String botName = "AI-" + (botId % 10000);
+        room.enterLobby(botId, botName);
+        int chooseResult = room.chooseSeat(botId, seat, "BOT-" + botId);
+        if (chooseResult < 0) {
+            sendError(session, 1098, "人机入座失败");
+            return;
+        }
+
+        Player bot = room.getPlayer(seat);
+        if (bot != null) {
+            bot.setBot(true);
+            bot.setOnline(true);
+            bot.setReady(true);
+        }
+        roomService.syncRoomSnapshot(roomId);
+
+        broadcastToRoom(room, new GameMessage(MessageType.S_CHAT, Map.of(
+                "seatIndex", -1,
+                "nickname", "系统",
+                "message", botName + " 已加入座位 " + seat)));
+        broadcastToRoom(room, new GameMessage(MessageType.S_SEAT_CHANGED, Map.of(
+                "seatIndex", seat,
+                "action", "SIT",
+                "userId", botId,
+                "nickname", botName,
+                "isBot", true)));
+        broadcastRoomState(room);
+    }
+
+    /**
      * 定缺选择
      */
     private void handleSelectMissSuit(String roomId, String sessionId, JSONObject data) {
@@ -657,6 +757,19 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
     private void handlePeng(String roomId, String sessionId) {
         int seatIndex = findSeatIndex(roomId, sessionId);
         gameService.peng(roomId, seatIndex);
+    }
+
+    /**
+     * 吃牌
+     */
+    private void handleChi(String roomId, String sessionId, JSONObject data) {
+        int seatIndex = findSeatIndex(roomId, sessionId);
+        List<Integer> consumeTileIdList = new ArrayList<>();
+        if (data.containsKey("consumeTileIds") && data.getJSONArray("consumeTileIds") != null) {
+            data.getJSONArray("consumeTileIds").forEach(value -> consumeTileIdList.add(((Number) value).intValue()));
+        }
+        List<Integer> consumeTileIds = consumeTileIdList.isEmpty() ? null : consumeTileIdList;
+        gameService.chi(roomId, seatIndex, consumeTileIds);
     }
 
     /**

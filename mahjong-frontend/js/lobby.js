@@ -163,6 +163,7 @@ class LobbyController {
             'S_DRAW',
             'S_DISCARD',
             'S_ACTION_OPTIONS',
+            'S_CHI',
             'S_PENG',
             'S_GANG',
             'S_HU',

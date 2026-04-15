@@ -225,6 +225,54 @@ public class WinChecker {
     }
 
     /**
+     * 判断某张牌打出后，某玩家是否可以吃（仅数值牌，返回所有可行吃法）
+     * 每个吃法返回两张需要从手牌消耗的 tileId。
+     */
+    public static List<List<Integer>> getChiOptions(Player player, Tile tile) {
+        List<List<Integer>> options = new ArrayList<>();
+        int tileId = tile.getTileId();
+        int suitStart = (tileId / 9) * 9;
+        int indexInSuit = tileId % 9;
+
+        int[] counts = player.toCountArray();
+
+        // x-2, x-1, x
+        if (indexInSuit >= 2) {
+            int left2 = tileId - 2;
+            int left1 = tileId - 1;
+            if (counts[left2] > 0 && counts[left1] > 0) {
+                options.add(List.of(left2, left1));
+            }
+        }
+
+        // x-1, x, x+1
+        if (indexInSuit >= 1 && indexInSuit <= 7) {
+            int left = tileId - 1;
+            int right = tileId + 1;
+            if (counts[left] > 0 && counts[right] > 0) {
+                options.add(List.of(left, right));
+            }
+        }
+
+        // x, x+1, x+2
+        if (indexInSuit <= 6) {
+            int right1 = tileId + 1;
+            int right2 = tileId + 2;
+            if (counts[right1] > 0 && counts[right2] > 0) {
+                options.add(List.of(right1, right2));
+            }
+        }
+
+        // 防御式过滤：确保都在同一花色内
+        options.removeIf(pair -> pair.stream().anyMatch(id -> id < suitStart || id >= suitStart + 9));
+        return options;
+    }
+
+    public static boolean canChi(Player player, Tile tile) {
+        return !getChiOptions(player, tile).isEmpty();
+    }
+
+    /**
      * 判断某玩家摸牌后是否可以补杠（已碰某牌，且刚摸到同种牌）
      */
     public static boolean canBuGang(Player player, Tile drawnTile) {

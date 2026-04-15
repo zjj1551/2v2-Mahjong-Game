@@ -276,6 +276,7 @@
                 <span>点击手牌后出牌</span>
                 <span>pass</span>
                 <span>peng</span>
+                <span>chi</span>
                 <span>gang</span>
                 <span>bu</span>
                 <span>angang</span>
@@ -300,6 +301,7 @@
             
             <!-- 房主管理区 (由 JS 动态显示/隐藏) -->
             <div id="creator-controls" style="margin-left: auto; display: flex; gap: 10px;">
+                <button class="btn-text-small" id="btn-add-bot" onclick="room.addBot()">添加人机</button>
                 <button class="btn-text-small" style="color:var(--color-danger);" onclick="room.disbandRoom()">解散房间</button>
             </div>
         </header>

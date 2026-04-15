@@ -12,6 +12,7 @@ class GameConsoleController {
         this.selectedTileId = null;
         this.pendingGangTileIds = [];
         this.pendingBuGangTileId = null;
+        this.pendingChiOptions = [];
         this.phase = 'WAITING';
         this.selectedMissSuit = null;
     }
@@ -25,6 +26,7 @@ class GameConsoleController {
         this.pendingActions = [];
         this.pendingGangTileIds = [];
         this.pendingBuGangTileId = null;
+        this.pendingChiOptions = [];
         this.selectedTileId = null;
         this.selectedMissSuit = null;
         this.setHandTiles(gameStartData?.handTiles || []);
@@ -138,58 +140,105 @@ class GameConsoleController {
         if (!container) return;
 
         container.innerHTML = '';
-        const actions = [];
+        const buildGroup = (title) => {
+            const group = document.createElement('div');
+            group.className = 'game-console-action-group';
 
+            const titleEl = document.createElement('div');
+            titleEl.className = 'game-console-action-group-title';
+            titleEl.innerText = title;
+            group.appendChild(titleEl);
+
+            const body = document.createElement('div');
+            body.className = 'game-console-action-group-body';
+            group.appendChild(body);
+            container.appendChild(group);
+            return body;
+        };
+
+        const missSuitGroup = buildGroup('定缺');
         if (this.phase === 'SELECT_MISS_SUIT' && this.selectedMissSuit == null) {
-            actions.push(this.buildActionButton('定缺万', () => this.sendMissSuit(0)));
-            actions.push(this.buildActionButton('定缺筒', () => this.sendMissSuit(1)));
-            actions.push(this.buildActionButton('定缺条', () => this.sendMissSuit(2)));
+            missSuitGroup.appendChild(this.buildActionButton('缺万', () => this.sendMissSuit(0)));
+            missSuitGroup.appendChild(this.buildActionButton('缺筒', () => this.sendMissSuit(1)));
+            missSuitGroup.appendChild(this.buildActionButton('缺条', () => this.sendMissSuit(2)));
+        } else if (this.selectedMissSuit != null) {
+            const suitNames = ['万', '筒', '条'];
+            missSuitGroup.appendChild(this.buildActionButton(`已定缺: ${suitNames[this.selectedMissSuit] || this.selectedMissSuit}`, null, 'secondary', true));
+        } else {
+            missSuitGroup.appendChild(this.buildActionButton('等待定缺阶段', null, 'secondary', true));
         }
 
+        const discardGroup = buildGroup('出牌');
         if (this.selectedTileId != null) {
-            actions.push(this.buildActionButton(`打出 ${this.tileLabel(this.findTileById(this.selectedTileId))}`, () => {
-                this.sendDiscard(this.selectedTileId);
-            }));
+            discardGroup.appendChild(this.buildActionButton(`打出 ${this.tileLabel(this.findTileById(this.selectedTileId))}`, () => this.sendDiscard(this.selectedTileId)));
+        } else {
+            discardGroup.appendChild(this.buildActionButton('先点选一张手牌', null, 'secondary', true));
         }
 
-        if (this.pendingActions.includes('PASS')) {
-            actions.push(this.buildActionButton('过', () => this.sendPass(), 'secondary'));
+        const reactGroup = buildGroup('碰吃胡');
+        const canPeng = this.pendingActions.includes('PENG');
+        const canChi = this.pendingActions.includes('CHI');
+        const canHu = this.pendingActions.includes('HU');
+
+        reactGroup.appendChild(this.buildActionButton('碰', () => this.sendPeng(), '', !canPeng));
+        if (canChi && this.pendingChiOptions.length) {
+            for (const option of this.pendingChiOptions) {
+                reactGroup.appendChild(this.buildActionButton(this.buildChiOptionLabel(option), () => this.sendChi(option.consumeTileIds)));
+            }
+        } else {
+            reactGroup.appendChild(this.buildActionButton('吃', () => this.sendChi(), '', !canChi));
         }
-        if (this.pendingActions.includes('PENG')) {
-            actions.push(this.buildActionButton('碰', () => this.sendPeng()));
+        reactGroup.appendChild(this.buildActionButton('胡', () => this.sendHu(false), 'danger', !canHu));
+
+        let hasReactAction = canPeng || canChi || canHu;
+        if (this.pendingActions.includes('PASS')) {
+            reactGroup.appendChild(this.buildActionButton('过', () => this.sendPass(), 'secondary'));
+            hasReactAction = true;
         }
         if (this.pendingActions.includes('GANG')) {
-            actions.push(this.buildActionButton('明杠', () => this.sendGang()));
-        }
-        if (this.pendingActions.includes('HU')) {
-            actions.push(this.buildActionButton('胡', () => this.sendHu(false), 'danger'));
+            reactGroup.appendChild(this.buildActionButton('明杠', () => this.sendGang()));
+            hasReactAction = true;
         }
         if (this.pendingActions.includes('AN_GANG')) {
+            hasReactAction = true;
             for (const tileId of this.pendingGangTileIds) {
-                actions.push(this.buildActionButton(`暗杠 ${this.tileLabel(this.findTileById(tileId) || { tileId })}`, () => this.sendAnGang(tileId)));
+                reactGroup.appendChild(this.buildActionButton(`暗杠 ${this.tileLabel(this.findTileById(tileId) || { tileId })}`, () => this.sendAnGang(tileId)));
             }
         }
         if (this.pendingActions.includes('BU_GANG') && this.pendingBuGangTileId != null) {
-            actions.push(this.buildActionButton(`补杠 ${this.tileLabel(this.findTileById(this.pendingBuGangTileId) || { tileId: this.pendingBuGangTileId })}`, () => this.sendBuGang(this.pendingBuGangTileId)));
+            reactGroup.appendChild(this.buildActionButton(`补杠 ${this.tileLabel(this.findTileById(this.pendingBuGangTileId) || { tileId: this.pendingBuGangTileId })}`, () => this.sendBuGang(this.pendingBuGangTileId)));
+            hasReactAction = true;
         }
         if (this.pendingActions.includes('ZI_MO')) {
-            actions.push(this.buildActionButton('自摸', () => this.sendHu(true), 'danger'));
+            reactGroup.appendChild(this.buildActionButton('自摸', () => this.sendHu(true), 'danger'));
+            hasReactAction = true;
+        }
+        if (!hasReactAction) {
+            reactGroup.appendChild(this.buildActionButton('当前无可响应动作', null, 'secondary', true));
         }
 
-        actions.push(this.buildActionButton('刷新状态', () => this.execute('state'), 'secondary'));
-
-        for (const button of actions) {
-            container.appendChild(button);
-        }
+        const systemGroup = buildGroup('系统');
+        systemGroup.appendChild(this.buildActionButton('刷新状态', () => this.execute('state'), 'secondary'));
     }
 
-    buildActionButton(text, onClick, className = '') {
+    buildActionButton(text, onClick, className = '', disabled = false) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `game-console-action-btn${className ? ` ${className}` : ''}`;
         button.innerText = text;
-        button.onclick = onClick;
+        if (disabled) {
+            button.disabled = true;
+            button.classList.add('disabled');
+        } else if (typeof onClick === 'function') {
+            button.onclick = onClick;
+        }
         return button;
+    }
+
+    buildChiOptionLabel(option) {
+        const consumeTileIds = Array.isArray(option?.consumeTileIds) ? option.consumeTileIds : [];
+        if (!consumeTileIds.length) return '吃';
+        return `吃 ${consumeTileIds.map(tileId => this.tileLabel({ tileId })).join('+')}`;
     }
 
     tileLabel(tile) {
@@ -259,6 +308,14 @@ class GameConsoleController {
         this.execute('peng');
     }
 
+    sendChi(consumeTileIds = null) {
+        if (Array.isArray(consumeTileIds) && consumeTileIds.length === 2) {
+            this.execute(`chi ${consumeTileIds[0]} ${consumeTileIds[1]}`);
+            return;
+        }
+        this.execute('chi');
+    }
+
     sendGang() {
         this.execute('gang');
     }
@@ -292,7 +349,7 @@ class GameConsoleController {
         this.append('cmd', `> ${command}`);
 
         if (cmd === 'help') {
-            this.append('system', '可直接点按钮操作。命令兜底: miss <0|1|2> | discard <tileId> | pass | peng | gang | bu <tileId> | angang <tileId> | hu | zimo | chat <文本> | ping | state');
+            this.append('system', '可直接点按钮操作。命令兜底: miss <0|1|2> | discard <tileId> | pass | peng | chi [tileId tileId] | gang | bu <tileId> | angang <tileId> | hu | zimo | chat <文本> | ping | state');
             return;
         }
 
@@ -320,6 +377,16 @@ class GameConsoleController {
                     break;
                 case 'peng':
                     send('C_PENG', {});
+                    break;
+                case 'chi':
+                    if (args.length === 0) {
+                        send('C_CHI', {});
+                        break;
+                    }
+                    if (args.length !== 2) throw new Error('用法: chi 或 chi <tileId1> <tileId2>');
+                    send('C_CHI', {
+                        consumeTileIds: args.map(arg => parseInt(arg, 10))
+                    });
                     break;
                 case 'gang':
                     send('C_GANG', { gangType: 'MING', tileId: 0 });
@@ -373,6 +440,7 @@ class GameConsoleController {
                 this.pendingActions = [];
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
+                this.pendingChiOptions = [];
                 this.selectedTileId = null;
                 this.selectedMissSuit = null;
                 this.setHandTiles(data.handTiles || []);
@@ -388,6 +456,7 @@ class GameConsoleController {
                 this.pendingActions = [];
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
+                this.pendingChiOptions = [];
                 this.setPhase('SELECT_MISS_SUIT', data.message || '请选择定缺花色');
                 this.append('system', data.message || '请选择定缺花色');
                 this.renderActions();
@@ -409,6 +478,7 @@ class GameConsoleController {
                 if (Number(data.seatIndex) === Number(this.seatIndex) && data.tile) {
                     this.addTileToHand(data.tile);
                     this.pendingActions = [];
+                    this.pendingChiOptions = [];
                     if (Array.isArray(data.actions)) {
                         for (const action of data.actions) {
                             if (action === 'HU') this.pendingActions.push('ZI_MO');
@@ -434,6 +504,7 @@ class GameConsoleController {
                     this.pendingActions = [];
                     this.pendingGangTileIds = [];
                     this.pendingBuGangTileId = null;
+                    this.pendingChiOptions = [];
                     this.setPhase('STARTED', '已出牌，等待其他玩家响应。');
                 }
                 this.append('system', `${data.seatIndex}号位打出 ${this.tileLabel({ tileId: data.tileId, name: data.tileName })}`);
@@ -442,8 +513,25 @@ class GameConsoleController {
 
             case 'S_ACTION_OPTIONS':
                 this.pendingActions = Array.isArray(data.actions) ? data.actions.slice() : [];
+                this.pendingChiOptions = this.normalizeChiOptions(data.chiOptions);
                 this.setPhase('REACTING', `你可以响应：${this.pendingActions.join(' / ')}`);
                 this.append('system', `可响应操作: ${this.pendingActions.join(', ')}`);
+                this.renderActions();
+                return;
+
+            case 'S_CHI':
+                if (Number(data.seatIndex) === Number(this.seatIndex)) {
+                    const consumeTileIds = Array.isArray(data.consumeTileIds) ? data.consumeTileIds : [];
+                    for (const tileId of consumeTileIds) {
+                        this.removeTileFromHand(tileId, 1);
+                    }
+                    this.pendingActions = [];
+                    this.pendingGangTileIds = [];
+                    this.pendingBuGangTileId = null;
+                    this.pendingChiOptions = [];
+                    this.setPhase('YOUR_TURN', '吃牌成功，请继续出牌。');
+                }
+                this.append('system', `${data.seatIndex}号位吃了 ${this.tileLabel({ tileId: data.tileId })}`);
                 this.renderActions();
                 return;
 
@@ -464,6 +552,7 @@ class GameConsoleController {
                     this.pendingActions = [];
                     this.pendingGangTileIds = [];
                     this.pendingBuGangTileId = null;
+                    this.pendingChiOptions = [];
                     this.setPhase('STARTED', '杠牌完成，等待补牌。');
                 }
                 this.append('system', `${data.seatIndex}号位${data.gangType || ''}杠了 ${this.tileLabel({ tileId: data.tileId })}`);
@@ -474,6 +563,7 @@ class GameConsoleController {
                 this.pendingActions = [];
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
+                this.pendingChiOptions = [];
                 this.setPhase('ROUND_SETTLED', `${data.seatIndex}号位${data.isSelfDraw ? '自摸' : '胡牌'}，本次分数 ${data.score ?? 0}`);
                 this.append('system', `${data.seatIndex}号位${data.isSelfDraw ? '自摸' : '胡牌'}，牌型 ${data.winType || '胡牌'}，分数 ${data.score ?? 0}`);
                 this.renderActions();
@@ -483,6 +573,7 @@ class GameConsoleController {
                 this.pendingActions = [];
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
+                this.pendingChiOptions = [];
                 this.setPhase('ROUND_SETTLED', `第 ${data.round ?? '-'} 局已结算`);
                 this.append('system', `本局结算: ${(data.players || []).map(player => `${player.nickname}:${player.score}`).join(' / ')}`);
                 this.renderActions();
@@ -492,6 +583,7 @@ class GameConsoleController {
                 this.pendingActions = [];
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
+                this.pendingChiOptions = [];
                 this.setPhase('GAME_OVER', '整场对局结束');
                 this.append('system', `整场结束: ${(data.players || []).map(player => `${player.nickname}:${player.totalScore}`).join(' / ')}`);
                 this.renderActions();
@@ -526,6 +618,24 @@ class GameConsoleController {
         if (normalized === '1' || normalized === 'tong' || normalized === 't' || normalized === '筒') return 1;
         if (normalized === '2' || normalized === 'tiao' || normalized === '条') return 2;
         return -1;
+    }
+
+    normalizeChiOptions(raw) {
+        if (!Array.isArray(raw)) return [];
+        const options = [];
+
+        for (const option of raw) {
+            const consumeTileIds = Array.isArray(option)
+                ? option
+                : (Array.isArray(option?.consumeTileIds) ? option.consumeTileIds : []);
+
+            if (consumeTileIds.length !== 2) continue;
+            const parsed = consumeTileIds.map(value => parseInt(value, 10));
+            if (parsed.some(value => !Number.isInteger(value))) continue;
+            options.push({ consumeTileIds: parsed });
+        }
+
+        return options;
     }
 }
 

@@ -2,6 +2,7 @@ package com.mahjong.service;
 
 import com.mahjong.model.Player;
 import com.mahjong.model.Room;
+import com.mahjong.redis.RoomStateStore;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -15,6 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 public class RoomService {
+
+    private final RoomStateStore roomStateStore;
+
+    public RoomService(RoomStateStore roomStateStore) {
+        this.roomStateStore = roomStateStore;
+    }
 
     /** roomId -> Room */
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
@@ -38,6 +45,7 @@ public class RoomService {
         String roomId = "R" + System.currentTimeMillis() + creatorId;
         Room room = new Room(roomId, roomName, creatorId);
         rooms.put(roomId, room);
+        roomStateStore.saveRoom(room);
         return room;
     }
 
@@ -74,6 +82,13 @@ public class RoomService {
     }
 
     /**
+     * 返回当前进程内存中的全部房间快照（用于迁移到外部存储）。
+     */
+    public List<Room> listAllRooms() {
+        return new ArrayList<>(rooms.values());
+    }
+
+    /**
      * 玩家加入房间
      *
      * @return 分配的座位号，-1 表示满座或房间不存在
@@ -85,6 +100,7 @@ public class RoomService {
         int seat = room.join(player);
         if (seat >= 0) {
             sessionRoomMap.put(player.getSessionId(), roomId);
+            roomStateStore.saveRoom(room);
         }
         return seat;
     }
@@ -100,6 +116,9 @@ public class RoomService {
         if (room.isEmpty()) {
             rooms.remove(roomId);
             sessionRoomMap.values().removeIf(id -> id.equals(roomId));
+            roomStateStore.deleteRoom(roomId);
+        } else {
+            roomStateStore.saveRoom(room);
         }
         return true;
     }
@@ -114,6 +133,7 @@ public class RoomService {
         if (room == null) return null;
         // 清除所有属于该房间的 session-room 绑定
         sessionRoomMap.values().removeIf(id -> id.equals(roomId));
+        roomStateStore.deleteRoom(roomId);
         return room;
     }
 
@@ -171,6 +191,10 @@ public class RoomService {
      */
     public void bindSessionRoom(String sessionId, String roomId) {
         sessionRoomMap.put(sessionId, roomId);
+        Room room = rooms.get(roomId);
+        if (room != null) {
+            roomStateStore.saveRoom(room);
+        }
     }
 
     /**
@@ -178,5 +202,15 @@ public class RoomService {
      */
     public void unbindSessionRoom(String sessionId) {
         sessionRoomMap.remove(sessionId);
+    }
+
+    /**
+     * 当房间对象被外部直接修改时，主动刷新一次缓存快照。
+     */
+    public void syncRoomSnapshot(String roomId) {
+        Room room = rooms.get(roomId);
+        if (room != null) {
+            roomStateStore.saveRoom(room);
+        }
     }
 }

@@ -21,6 +21,9 @@ public enum MessageType {
     /** 玩家声明碰牌 */
     C_PENG,
 
+    /** 玩家声明吃牌（仅下家可用，可携带 consumeTileIds） */
+    C_CHI,
+
     /** 玩家声明明杠（他人打出）或补杠（自己已碰的牌再摸一张） */
     C_GANG,
 
@@ -55,6 +58,10 @@ public enum MessageType {
 
     /** 房主强制开始游戏（需或1个以上就座玩家） */
     C_START_GAME,
+
+    /** 房主添加人机（data: {seatIndex?: 0-3}，不传则自动找空位） */
+    C_ADD_BOT,
+
     /** 心跳包 */
     C_PING,
 
@@ -83,6 +90,9 @@ public enum MessageType {
 
     /** 碰牌广播 */
     S_PENG,
+
+    /** 吃牌广播 */
+    S_CHI,
 
     /** 杠牌广播（明杠/补杠/暗杠） */
     S_GANG,
