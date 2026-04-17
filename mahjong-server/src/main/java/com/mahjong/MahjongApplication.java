@@ -25,6 +25,13 @@ public class MahjongApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        userRepository.findAll().forEach(user -> {
+            if (user.getTotalScore() <= 0) {
+                user.setTotalScore(500);
+                userRepository.save(user);
+            }
+        });
+
         Optional<UserEntity> adminOpt = userRepository.findByUsername("admin");
         if (adminOpt.isEmpty()) {
             UserEntity admin = new UserEntity();

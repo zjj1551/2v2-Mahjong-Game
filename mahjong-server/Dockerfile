@@ -4,7 +4,7 @@ WORKDIR /app
 COPY pom.xml ./
 COPY src ./src
 
-RUN mvn -B -DskipTests package \
+RUN mvn -B -Dmaven.test.skip=true package \
     && JAR_FILE="$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1)" \
     && cp "$JAR_FILE" target/app.jar
 

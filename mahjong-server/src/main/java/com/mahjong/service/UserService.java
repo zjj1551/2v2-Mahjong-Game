@@ -43,6 +43,7 @@ public class UserService {
         }
 
         UserEntity user = new UserEntity(username, passwordEncoder.encode(rawPassword), nickname);
+        user.setTotalScore(1000);
         return userRepository.save(user);
     }
 
@@ -60,6 +61,7 @@ public class UserService {
         if (user.getStatus() == 1) {
             throw new IllegalStateException("账户已被封禁");
         }
+        normalizeIfNeeded(user);
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
             return null;
         }
@@ -73,7 +75,9 @@ public class UserService {
      * 根据ID获取用户
      */
     public Optional<UserEntity> findById(Long id) {
-        return userRepository.findById(id);
+        Optional<UserEntity> opt = userRepository.findById(id);
+        opt.ifPresent(this::normalizeIfNeeded);
+        return opt;
     }
 
     /**
@@ -93,11 +97,13 @@ public class UserService {
      * 积分排行榜（Top N）
      */
     public java.util.List<UserEntity> getLeaderboard(int topN) {
-        return userRepository.findAll(
+        java.util.List<UserEntity> leaderboard = userRepository.findAll(
                 org.springframework.data.domain.PageRequest.of(0, topN,
                         org.springframework.data.domain.Sort.by(
                                 org.springframework.data.domain.Sort.Direction.DESC, "totalScore")))
                 .getContent();
+        leaderboard.forEach(this::normalizeIfNeeded);
+        return leaderboard;
     }
 
     // --- 管理员操作 ---
@@ -163,7 +169,16 @@ public class UserService {
      */
     public List<UserEntity> getAllUsers(Long adminId) {
         checkAdmin(adminId);
-        return userRepository.findAll();
+        List<UserEntity> users = userRepository.findAll();
+        users.forEach(this::normalizeIfNeeded);
+        return users;
+    }
+
+    private void normalizeIfNeeded(UserEntity user) {
+        if (user.getTotalScore() <= 0) {
+            user.setTotalScore(500);
+            userRepository.save(user);
+        }
     }
 
     // --- 好友系统 ---

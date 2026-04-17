@@ -30,6 +30,8 @@ class GameConsoleController {
         this.selectedTileId = null;
         this.selectedMissSuit = null;
         this.setHandTiles(gameStartData?.handTiles || []);
+        this.closeRoundSettlement();
+        this.closeGameSettlement();
 
         document.getElementById('game-console-room-id').innerText = this.roomId || '-';
         document.getElementById('game-console-user-id').innerText = this.userId || '-';
@@ -49,6 +51,98 @@ class GameConsoleController {
     close() {
         this.isOpen = false;
         document.getElementById('modal-game-console').classList.add('hidden');
+        this.closeRoundSettlement();
+        this.closeGameSettlement();
+    }
+
+    closeRoundSettlement() {
+        const modal = document.getElementById('modal-round-settlement');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    closeGameSettlement() {
+        const modal = document.getElementById('modal-game-settlement');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    finishGameSettlement() {
+        this.closeGameSettlement();
+        this.close();
+        if (window.lobby) {
+            window.lobby.clearRoomContext();
+        }
+        if (window.room) {
+            window.room.resetUI();
+        }
+        app.switchView('lobby');
+        if (window.lobby) {
+            window.lobby.loadRooms();
+        }
+    }
+
+    showRoundSettlement(data) {
+        const modal = document.getElementById('modal-round-settlement');
+        const roundEl = document.getElementById('round-settlement-round');
+        const summaryEl = document.getElementById('round-settlement-summary');
+        const body = document.getElementById('table-round-settlement-body');
+        if (!modal || !roundEl || !summaryEl || !body) return;
+
+        const players = Array.isArray(data?.players) ? data.players.slice() : [];
+        players.sort((left, right) => (right.score || 0) - (left.score || 0));
+
+        roundEl.innerText = `第 ${data?.round ?? '-'} 局`;
+        const huPlayers = players.filter(player => !!player.hu).map(player => player.nickname);
+        summaryEl.innerText = huPlayers.length
+            ? `胡牌: ${huPlayers.join(' / ')}`
+            : '本局无人胡牌';
+
+        body.innerHTML = players.map((player, index) => {
+            const score = Number(player.score || 0);
+            const scoreClass = score > 0 ? 'settlement-score-plus' : (score < 0 ? 'settlement-score-minus' : 'settlement-score-neutral');
+            const scoreText = score > 0 ? `+${score}` : `${score}`;
+            const isSelf = Number(player.userId) === Number(this.userId);
+            return `
+                <tr class="${isSelf ? 'settlement-row-self' : ''}">
+                    <td class="settlement-rank">#${index + 1}</td>
+                    <td>${player.seatIndex ?? '-'}</td>
+                    <td>${player.nickname || '-'}${isSelf ? ' (我)' : ''}</td>
+                    <td class="${scoreClass}">${scoreText}</td>
+                    <td>${player.hu ? '胡牌' : '未胡牌'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        modal.classList.remove('hidden');
+    }
+
+    showGameSettlement(data) {
+        const modal = document.getElementById('modal-game-settlement');
+        const summaryEl = document.getElementById('game-settlement-summary');
+        const body = document.getElementById('table-game-settlement-body');
+        if (!modal || !summaryEl || !body) return;
+
+        const players = Array.isArray(data?.players) ? data.players.slice() : [];
+        players.sort((left, right) => (right.totalScore || 0) - (left.totalScore || 0));
+
+        const champion = players[0]?.nickname || '-';
+        summaryEl.innerText = `本场冠军: ${champion}`;
+
+        body.innerHTML = players.map((player, index) => {
+            const score = Number(player.totalScore || 0);
+            const scoreClass = score > 0 ? 'settlement-score-plus' : (score < 0 ? 'settlement-score-minus' : 'settlement-score-neutral');
+            const scoreText = score > 0 ? `+${score}` : `${score}`;
+            const isSelf = Number(player.userId) === Number(this.userId);
+            return `
+                <tr class="${isSelf ? 'settlement-row-self' : ''}">
+                    <td class="settlement-rank">#${index + 1}</td>
+                    <td>${player.seatIndex ?? '-'}</td>
+                    <td>${player.nickname || '-'}${isSelf ? ' (我)' : ''}</td>
+                    <td class="${scoreClass}">${scoreText}</td>
+                </tr>
+            `;
+        }).join('');
+
+        modal.classList.remove('hidden');
     }
 
     clearOutput() {
@@ -437,6 +531,8 @@ class GameConsoleController {
             if (!this.isOpen) {
                 this.open(data);
             } else {
+                this.closeRoundSettlement();
+                this.closeGameSettlement();
                 this.pendingActions = [];
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
@@ -576,6 +672,7 @@ class GameConsoleController {
                 this.pendingChiOptions = [];
                 this.setPhase('ROUND_SETTLED', `第 ${data.round ?? '-'} 局已结算`);
                 this.append('system', `本局结算: ${(data.players || []).map(player => `${player.nickname}:${player.score}`).join(' / ')}`);
+                this.showRoundSettlement(data);
                 this.renderActions();
                 return;
 
@@ -586,6 +683,8 @@ class GameConsoleController {
                 this.pendingChiOptions = [];
                 this.setPhase('GAME_OVER', '整场对局结束');
                 this.append('system', `整场结束: ${(data.players || []).map(player => `${player.nickname}:${player.totalScore}`).join(' / ')}`);
+                this.closeRoundSettlement();
+                this.showGameSettlement(data);
                 this.renderActions();
                 return;
 

@@ -40,6 +40,10 @@ class RoomController {
 
         document.getElementById('chat-message-list').innerHTML =
             '<div class="chat-msg system" style="color:var(--color-primary); text-align:center; font-size:0.9em;">--- 欢迎来到蜀山论剑 ---</div>';
+        const gameChatList = document.getElementById('game-chat-message-list');
+        if (gameChatList) {
+            gameChatList.innerHTML = '<div class="chat-msg system" style="color:var(--color-primary); text-align:center; font-size:0.9em;">--- 对局聊天频道已开启 ---</div>';
+        }
 
         app.switchView('room-prep');
 
@@ -47,6 +51,20 @@ class RoomController {
         if (roomData) {
             this.handleRoomStateUpdate(roomData);
         }
+    }
+
+    enterGameView(gameStartData) {
+        document.getElementById('lbl-game-room-id').innerText = this.currentRoomId || '-';
+        const stageEl = document.getElementById('cocos-game-stage');
+        if (stageEl) {
+            stageEl.innerHTML = `
+                <div class="cocos-stage-placeholder">
+                    <div class="cocos-stage-title">Cocos 对局画面</div>
+                    <div class="cocos-stage-subtitle">座位 ${gameStartData?.seatIndex ?? '-'} · 第 ${gameStartData?.round ?? '-'} 局</div>
+                </div>
+            `;
+        }
+        app.switchView('game');
     }
 
     // 离开房间
@@ -92,6 +110,8 @@ class RoomController {
         
         // 清空聊天
         document.getElementById('chat-message-list').innerHTML = '';
+        const gameChatList = document.getElementById('game-chat-message-list');
+        if (gameChatList) gameChatList.innerHTML = '';
     }
 
     // WebSocket 广播：全量房间状态同步
@@ -286,6 +306,18 @@ class RoomController {
         inp.value = '';
     }
 
+    sendGameChat(e) {
+        e.preventDefault();
+        const inp = document.getElementById('game-chat-input');
+        const txt = inp.value.trim();
+        if (!txt) return;
+
+        if (window.lobby && window.lobby.ws) {
+            window.lobby.sendWsMessage('C_CHAT', this.currentRoomId, { message: txt });
+        }
+        inp.value = '';
+    }
+
     sendQuickChat(txt) {
         if (window.lobby && window.lobby.ws) {
             window.lobby.sendWsMessage('C_CHAT', this.currentRoomId, { message: txt });
@@ -299,7 +331,9 @@ class RoomController {
     }
 
     appendMessage(senderName, text, isSelf) {
-        const list = document.getElementById('chat-message-list');
+        const activeGame = app.state.currentView === 'game';
+        const list = document.getElementById(activeGame ? 'game-chat-message-list' : 'chat-message-list');
+        if (!list) return;
         const msgWrapper = document.createElement('div');
         msgWrapper.style.display = "flex";
         msgWrapper.style.flexDirection = "column";

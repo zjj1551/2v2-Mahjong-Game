@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     username        VARCHAR(50)     NOT NULL                 COMMENT '用户名（登录用）',
     password        VARCHAR(100)    NOT NULL                 COMMENT '密码（BCrypt加密）',
     nickname        VARCHAR(50)     NOT NULL                 COMMENT '昵称（显示用）',
-    total_score     INT             NOT NULL DEFAULT 0       COMMENT '总积分',
+    total_score     INT             NOT NULL DEFAULT 1000    COMMENT '总积分',
     win_count       INT             NOT NULL DEFAULT 0       COMMENT '总胜场',
     game_count      INT             NOT NULL DEFAULT 0       COMMENT '总局数',
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',

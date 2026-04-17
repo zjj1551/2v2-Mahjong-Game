@@ -25,7 +25,7 @@ public class UserEntity {
 
     /** 用户总积分（赛事积分排行用） */
     @Column(name = "total_score", nullable = false)
-    private int totalScore = 0;
+    private int totalScore = 1000;
 
     /** 总胜场 */
     @Column(name = "win_count", nullable = false)
@@ -71,7 +71,21 @@ public class UserEntity {
     public void setNickname(String nickname) { this.nickname = nickname; }
 
     public int getTotalScore() { return totalScore; }
-    public void addTotalScore(int delta) { this.totalScore += delta; }
+    public void setTotalScore(int totalScore) {
+        this.totalScore = totalScore;
+        normalizeTotalScore();
+    }
+
+    public void addTotalScore(int delta) {
+        this.totalScore += delta;
+        normalizeTotalScore();
+    }
+
+    private void normalizeTotalScore() {
+        if (this.totalScore <= 0) {
+            this.totalScore = 500;
+        }
+    }
 
     public int getWinCount() { return winCount; }
     public void incrementWinCount() { this.winCount++; }

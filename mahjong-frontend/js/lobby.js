@@ -177,7 +177,7 @@ class LobbyController {
                 this.saveRoomContext(data.roomId);
                 if (window.room) {
                     // 如果当前不在房间视图，则切过去
-                    if (app.state.currentView !== 'room-prep') {
+                    if (app.state.currentView !== 'room-prep' && app.state.currentView !== 'game') {
                         window.room.enter(data.roomId, data);
                     } else {
                         window.room.handleRoomStateUpdate(data);
@@ -243,9 +243,12 @@ class LobbyController {
     }
 
     simulateCocosTransition(gameStartData) {
-        app.showSuccess("对局开始！网页终端已接管。");
+        app.showSuccess("对局开始！已切换到游戏画面。");
+        if (window.room) {
+            window.room.enterGameView(gameStartData);
+        }
         if (window.gameConsole) {
-            window.gameConsole.open(gameStartData);
+            window.gameConsole.latestGameStartData = gameStartData || {};
         }
     }
 
@@ -640,11 +643,11 @@ class LobbyController {
         if (!titleEl) return;
 
         let title = '雀坛萌新';
-        if (score >= 5000) title = '传说雀神';
-        else if (score >= 3000) title = '无双雀圣';
-        else if (score >= 1500) title = '名手雀豪';
-        else if (score >= 800) title = '资深雀杰';
-        else if (score >= 300) title = '进阶雀士';
+        if (score >= 8000) title = '传说雀神';
+        else if (score >= 6000) title = '无双雀圣';
+        else if (score >= 4000) title = '名手雀豪';
+        else if (score >= 2500) title = '资深雀杰';
+        else if (score >= 1500) title = '进阶雀士';
 
         titleEl.innerText = title;
     }

@@ -293,6 +293,56 @@
         </div>
     </div>
 
+    <div id="modal-round-settlement" class="modal-overlay hidden">
+        <div class="modal-content glass-panel settlement-modal">
+            <button class="btn-close" onclick="gameConsole.closeRoundSettlement()">×</button>
+            <h2 class="modal-title">小局结算</h2>
+            <p id="round-settlement-round" class="settlement-subtitle">第 - 局</p>
+            <div id="round-settlement-summary" class="settlement-summary">本局结果待同步...</div>
+            <div class="table-container">
+                <table class="premium-table">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>座位</th>
+                            <th>玩家</th>
+                            <th>本局分数</th>
+                            <th>结果</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-round-settlement-body"></tbody>
+                </table>
+            </div>
+            <div class="settlement-actions">
+                <button class="btn-primary" onclick="gameConsole.closeRoundSettlement()">继续下一局</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-game-settlement" class="modal-overlay hidden">
+        <div class="modal-content glass-panel settlement-modal">
+            <button class="btn-close" onclick="gameConsole.finishGameSettlement()">×</button>
+            <h2 class="modal-title">整场结算</h2>
+            <p id="game-settlement-summary" class="settlement-summary">整场结果待同步...</p>
+            <div class="table-container">
+                <table class="premium-table">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>座位</th>
+                            <th>玩家</th>
+                            <th>总分</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-game-settlement-body"></tbody>
+                </table>
+            </div>
+            <div class="settlement-actions">
+                <button class="btn-primary" onclick="gameConsole.finishGameSettlement()">返回大厅</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 对局准备视图 (选座与聊天室) -->
     <section id="view-room-prep" class="view-container hidden fade-in">
         <header class="lobby-header glass-header" style="justify-content: flex-start; gap: 20px;">
@@ -360,6 +410,50 @@
                     </form>
                 </div>
             </div>
+        </main>
+    </section>
+
+    <section id="view-game" class="view-container hidden fade-in">
+        <header class="lobby-header glass-header" style="justify-content: space-between; gap: 20px;">
+            <div class="logo-mini">对局中 · 房间 <span id="lbl-game-room-id">-</span></div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-text-small" onclick="gameConsole.open(gameConsole.latestGameStartData || {})">打开终端</button>
+                <button class="btn-icon" onclick="room.leaveRoom()">⬅ 退出房间</button>
+            </div>
+        </header>
+
+        <main class="game-live-content">
+            <section class="game-stage-panel glass-panel">
+                <div class="panel-header">
+                    <h3>🎮 Cocos 对局画面</h3>
+                </div>
+                <div id="cocos-game-stage" class="cocos-stage-shell">
+                    <div class="cocos-stage-placeholder">
+                        <div class="cocos-stage-title">Cocos 画面区域</div>
+                        <div class="cocos-stage-subtitle">左侧预留给 Cocos 渲染层，已按对局视图比例布局。</div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="game-chat-panel glass-panel">
+                <div class="chat-header">
+                    <h3>💬 对局聊天</h3>
+                </div>
+                <div class="chat-messages" id="game-chat-message-list">
+                    <div class="chat-msg system">--- 对局聊天频道已开启 ---</div>
+                </div>
+                <div class="chat-input-area" style="margin-top:10px;">
+                    <div class="quick-chats">
+                        <span class="quick-btn" onclick="room.sendQuickChat('稳住，这把能赢')">稳住</span>
+                        <span class="quick-btn" onclick="room.sendQuickChat('好牌！')">好牌</span>
+                        <span class="quick-btn" onclick="room.sendQuickChat('先观察一轮')">先观察</span>
+                    </div>
+                    <form id="form-game-chat" onsubmit="room.sendGameChat(event)">
+                        <input type="text" id="game-chat-input" placeholder="发送对局消息..." autocomplete="off" />
+                        <button type="submit" class="btn-primary" style="padding:0 20px;">发送</button>
+                    </form>
+                </div>
+            </aside>
         </main>
     </section>
 

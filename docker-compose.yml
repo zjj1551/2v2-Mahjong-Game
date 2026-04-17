@@ -21,6 +21,19 @@ services:
       timeout: 3s
       retries: 20
 
+  redis:
+    image: redis:7-alpine
+    container_name: mahjong-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   backend:
     build:
       context: ./mahjong-server
@@ -30,10 +43,14 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DB_URL: jdbc:mysql://mysql:3306/mahjong_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
       DB_USER: root
       DB_PASSWORD: root123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       TZ: Asia/Shanghai
     expose:
       - "8080"
@@ -52,3 +69,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:
