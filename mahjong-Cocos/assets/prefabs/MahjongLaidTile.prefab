@@ -1,7 +1,7 @@
 [
   {
     "__type__": "cc.Prefab",
-    "_name": "MahjongTile",
+    "_name": "MahjongLaidTile",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_native": "",
@@ -13,7 +13,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "MahjongTile",
+    "_name": "MahjongLaidTile",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": null,
@@ -213,8 +213,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 73,
-      "height": 110
+      "width": 58,
+      "height": 84
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -250,7 +250,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "f1963090-b950-45c0-8fd6-195111928dda@f9941",
+      "__uuid__": "b78489cd-7fba-4813-ab8e-411bd53e3719@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,

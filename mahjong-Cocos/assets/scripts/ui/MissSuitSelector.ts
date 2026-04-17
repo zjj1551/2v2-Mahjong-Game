@@ -1,54 +1,47 @@
-import { _decorator, Component, Node, Label, Sprite, SpriteFrame, resources, error } from 'cc';
+import { _decorator, Component, Node, tween, v3 } from 'cc';
 import { WebSocketManager } from '../network/WebSocketManager';
-import { MessageType } from '../core/TileConstants';
 const { ccclass, property } = _decorator;
 
-/**
- * 定缺选择 UI 组件
- *
- * 节点结构（挂载在游戏桌面 Canvas 下）：
- * MissSuitPanel
- * ├── Label_Title       ("请选择定缺花色")
- * ├── Btn_Wan           (选万)
- * ├── Btn_Tong          (选筒)
- * └── Btn_Tiao          (选条)
- */
 @ccclass('MissSuitSelector')
 export class MissSuitSelector extends Component {
-
     @property(Node)
-    panel: Node = null!;
+    wanBtn: Node = null!;
+    @property(Node)
+    tongBtn: Node = null!;
+    @property(Node)
+    tiaoBtn: Node = null!;
 
-    protected onLoad(): void {
-        if (this.panel) this.panel.active = false;
-        WebSocketManager.instance.on(MessageType.S_SELECT_MISS_SUIT, this._onSelectMissSuit, this);
+    onEnable() {
+        // 面板弹出效果
+        this.node.setScale(v3(0.5, 0.5, 1));
+        tween(this.node)
+            .to(0.25, { scale: v3(1, 1, 1) }, { easing: 'backOut' })
+            .start();
     }
 
-    protected onDestroy(): void {
-        WebSocketManager.instance.off(MessageType.S_SELECT_MISS_SUIT, this._onSelectMissSuit);
+    /** 统一点击缩放 */
+    private _playBtnEffect(node: Node, callback: Function) {
+        tween(node)
+            .to(0.05, { scale: v3(0.9, 0.9, 1) })
+            .to(0.05, { scale: v3(1, 1, 1) })
+            .call(() => callback())
+            .start();
     }
 
-    private _onSelectMissSuit(_data: any): void {
-        if (this.panel) this.panel.active = true;
+    public onSelectWan() {
+        this._playBtnEffect(this.wanBtn, () => this._sendSelect(0));
     }
 
-    /** 点击"万"按钮 */
-    public onSelectWan(): void {
-        this._select(0);
+    public onSelectTong() {
+        this._playBtnEffect(this.tongBtn, () => this._sendSelect(1));
     }
 
-    /** 点击"筒"按钮 */
-    public onSelectTong(): void {
-        this._select(1);
+    public onSelectTiao() {
+        this._playBtnEffect(this.tiaoBtn, () => this._sendSelect(2));
     }
 
-    /** 点击"条"按钮 */
-    public onSelectTiao(): void {
-        this._select(2);
-    }
-
-    private _select(suitIndex: number): void {
-        WebSocketManager.instance.send(MessageType.C_SELECT_MISS_SUIT, { suitIndex });
-        if (this.panel) this.panel.active = false;
+    private _sendSelect(suitIndex: number) {
+        WebSocketManager.instance.send('C_SELECT_MISS_SUIT', { suitIndex });
+        this.node.active = false; // 选完立即隐藏面板
     }
 }

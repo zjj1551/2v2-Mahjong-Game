@@ -12,8 +12,28 @@ export class TableCenterManager extends Component {
     @property(Sprite)
     onesDigit: Sprite = null!; // 个位数 Sprite
 
+    @property(Sprite)
+    bgSprite: Sprite = null!; // 底盘背景
+
+    @property(Sprite)
+    middleSprite: Sprite = null!; // 非高亮的东南西北字
+
     private _countdown: number = 0;
     private _timer: any = null;
+
+    protected onLoad() {
+        this.loadStaticSprite(this.bgSprite, 'textures/dir/dir_bg/spriteFrame');
+        this.loadStaticSprite(this.middleSprite, 'textures/dir/middle/spriteFrame');
+    }
+
+    private loadStaticSprite(sprite: Sprite, path: string) {
+        if (!sprite) return;
+        resources.load(path, SpriteFrame, (err, sf) => {
+            if (!err && sprite.isValid) {
+                sprite.spriteFrame = sf;
+            }
+        });
+    }
 
     /**
      * 设置当前活跃方位
@@ -49,19 +69,24 @@ export class TableCenterManager extends Component {
         const tens = Math.floor(this._countdown / 10);
         const ones = this._countdown % 10;
 
-        this.setNumberSprite(this.tensDigit, tens);
-        this.setNumberSprite(this.onesDigit, ones);
+        // 倒计时 <= 3 秒时，数字变红以示警告
+        const colorFolder = this._countdown <= 3 ? 'number_red' : 'number_blue';
+
+        this.setNumberSprite(this.tensDigit, tens, colorFolder);
+        this.setNumberSprite(this.onesDigit, ones, colorFolder);
     }
 
-    private setNumberSprite(sprite: Sprite, num: number) {
-        // 使用红色数字
-        const path = `textures/number_red/${num}/spriteFrame`;
+    private setNumberSprite(sprite: Sprite, num: number, folderName: string) {
+        if (!sprite) return;
+        const path = `textures/${folderName}/${num}/spriteFrame`;
         resources.load(path, SpriteFrame, (err, sf) => {
             if (err) {
                 error(`Failed to load number sprite: ${path}`);
                 return;
             }
-            sprite.spriteFrame = sf;
+            if (sprite.isValid) {
+                sprite.spriteFrame = sf;
+            }
         });
     }
 

@@ -10,6 +10,9 @@ import { TableCenterManager } from './TableCenterManager';
 import { ActionController } from './ActionController';
 import { MissSuitSelector } from './MissSuitSelector';
 import { RoundResultPanel } from './RoundResultPanel';
+import { VisualEffectManager } from './VisualEffectManager';
+import { TingIndicator } from './TingIndicator';
+import { PlayerUI } from './PlayerUI';
 const { ccclass, property } = _decorator;
 
 /**
@@ -73,6 +76,12 @@ export class GameController extends Component {
     @property(Label)
     labelWallCount: Label = null!;   // 显示牌墙剩余张数
 
+    @property(TingIndicator)
+    tingIndicator: TingIndicator = null!; // 听牌提示器
+
+    @property(PlayerUI)
+    localPlayerUI: PlayerUI = null!; // 本地玩家的 UI
+
     private _mySeatIndex: number = -1;
     private _actionQueue: ActionQueue = new ActionQueue();
 
@@ -80,13 +89,16 @@ export class GameController extends Component {
         const ws = WebSocketManager.instance;
         ws.on(MessageType.S_ROOM_STATE,    this._onRoomState,    this);
         ws.on(MessageType.S_GAME_START,    this._onGameStart,    this);
+        ws.on(MessageType.S_SELECT_MISS_SUIT, this._onStartMissSuit, this);
         ws.on(MessageType.S_MISS_SUIT_RESULT, this._onMissSuitResult, this);
         ws.on(MessageType.S_DRAW,          this._onDraw,         this);
         ws.on(MessageType.S_DISCARD,       this._onDiscard,      this);
         ws.on(MessageType.S_PENG,          this._onPeng,         this);
+        ws.on(MessageType.S_CHI,           this._onChi,          this);
         ws.on(MessageType.S_GANG,          this._onGang,         this);
         ws.on(MessageType.S_GANG_DRAW,     this._onGangDraw,     this);
         ws.on(MessageType.S_HU,            this._onHu,           this);
+        ws.on(MessageType.S_COUNTDOWN,     this._onCountdown,    this);
         ws.on(MessageType.S_ERROR,         this._onError,        this);
     }
 
@@ -94,26 +106,49 @@ export class GameController extends Component {
         const ws = WebSocketManager.instance;
         ws.off(MessageType.S_ROOM_STATE,    this._onRoomState);
         ws.off(MessageType.S_GAME_START,    this._onGameStart);
+        ws.off(MessageType.S_SELECT_MISS_SUIT, this._onStartMissSuit);
         ws.off(MessageType.S_MISS_SUIT_RESULT, this._onMissSuitResult);
         ws.off(MessageType.S_DRAW,          this._onDraw);
         ws.off(MessageType.S_DISCARD,       this._onDiscard);
         ws.off(MessageType.S_PENG,          this._onPeng);
+        ws.off(MessageType.S_CHI,           this._onChi);
         ws.off(MessageType.S_GANG,          this._onGang);
         ws.off(MessageType.S_GANG_DRAW,     this._onGangDraw);
         ws.off(MessageType.S_HU,            this._onHu);
+        ws.off(MessageType.S_COUNTDOWN,     this._onCountdown);
         ws.off(MessageType.S_ERROR,         this._onError);
+    }
+
+    // ─── 按钮点击 ─────────────────────────────────────────────
+
+    public onReadyClick(): void {
+        this._isReady = !this._isReady;
+        WebSocketManager.instance.send('C_READY', { isReady: this._isReady });
+    }
+
+    public onLeaveClick(): void {
+        WebSocketManager.instance.send('C_LEAVE_ROOM', {});
+        director.loadScene('LobbyScene');
     }
 
     // ─── 消息处理 ─────────────────────────────────────────────
 
     /** 房间状态同步（进入房间/断线重连时） */
     private _onRoomState(data: any): void {
-        const players: any[] = data?.players ?? [];
-        const myUserId = HttpManager.instance.userId;
+        const { status, players } = data;
+        const myUserId = WebSocketManager.instance.userId;
 
         // 找到自己的座位
-        const me = players.find(p => p.userId === myUserId);
-        if (me) this._mySeatIndex = me.seatIndex;
+        const me = players.find((p: any) => p.userId === myUserId);
+        if (me) {
+            this._mySeatIndex = me.seatIndex;
+            this._isReady = me.ready;
+        }
+
+        // 更新准备面板显示
+        if (this.readyPanel) {
+            this.readyPanel.active = (status === 'WAITING' || status === 'READY');
+        }
 
         // 初始化对手区域
         for (const p of players) {
@@ -121,27 +156,44 @@ export class GameController extends Component {
             const relSeat = GameData.getRelativeSeat(this._mySeatIndex, p.seatIndex);
             // relSeat: 1=右家, 2=对家, 3=左家 → 映射到 opponentAreas[0..2]
             const area = this.opponentAreas[relSeat - 1];
-            area?.init(p.seatIndex, p.nickname ?? `玩家${p.seatIndex}`, 0);
+            area?.init(p.seatIndex, p.nickname ?? `玩家${p.seatIndex}`, 13);
         }
     }
 
     /** 游戏开始 */
     private _onGameStart(data: any): void {
+        if (this.readyPanel) this.readyPanel.active = false;
+        if (this.tingIndicator) this.tingIndicator.hide();
         this._actionQueue.clear();
         const { handTiles, dealerSeat, wallCount } = data;
         this._updateWallCount(wallCount);
         this.centerManager?.setActiveDirection(dealerSeat);
-        // MahjongTable 自己监听了 S_GAME_START，这里做额外协调
+        
+        // 初始化对手手牌为 13 张
+        this.opponentAreas.forEach(area => {
+            if (area) area.init(area.seatIndex, area.labelNickname.string, 13);
+        });
+
         console.log('[GameController] Game started, dealer:', dealerSeat);
     }
 
-    /** 所有人定缺完毕 */
+    /** 进入定缺阶段 */
+    private _onStartMissSuit(data: any): void {
+        if (this.missSuitSelector) {
+            this.missSuitSelector.node.active = true;
+        }
+    }
     private _onMissSuitResult(data: any): void {
         const results: { seatIndex: number; suitIndex: number }[] = data ?? [];
         const suitNames = ['万', '筒', '条'];
         for (const r of results) {
-            if (r.seatIndex === this._mySeatIndex) continue;
             const relSeat = GameData.getRelativeSeat(this._mySeatIndex, r.seatIndex);
+            if (relSeat === 0) {
+                if (this.localPlayerUI) {
+                    this.localPlayerUI.setMissSuit(suitNames[r.suitIndex] ?? '?');
+                }
+                continue;
+            }
             const area = this.opponentAreas[relSeat - 1];
             area?.setMissSuit(suitNames[r.suitIndex] ?? '?');
         }
@@ -150,15 +202,33 @@ export class GameController extends Component {
     /** 摸牌（只有自己能收到） */
     private _onDraw(data: any): void {
         this._updateWallCount(data?.wallCount);
-        // MahjongTable 自己监听 S_DRAW 添加手牌
         this.centerManager?.startCountdown(20);
+
+        // 听牌提示
+        if (data?.tingTiles && data.tingTiles.length > 0) {
+            this.tingIndicator?.showTing(data.tingTiles);
+        } else {
+            this.tingIndicator?.hide();
+        }
+    }
+
+    /** 倒计时广播 */
+    private _onCountdown(data: any): void {
+        const { seatIndex, seconds } = data;
+        this.centerManager?.setActiveDirection(seatIndex);
+        this.centerManager?.startCountdown(seconds);
+
+        // 如果轮到对手摸牌，我们在这里更新其手牌计数（补丁：弥补 S_DRAW 不广播的问题）
+        const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);
+        if (relSeat !== 0) {
+            this.opponentAreas[relSeat - 1]?.onOpponentDraw();
+        }
     }
 
     /** 某人出牌 */
     private _onDiscard(data: any): void {
         const { seatIndex, tileId, wallCount } = data;
         this._updateWallCount(wallCount);
-        this.centerManager?.setActiveDirection(seatIndex);
 
         if (seatIndex === this._mySeatIndex) return;
 
@@ -167,18 +237,47 @@ export class GameController extends Component {
         area?.onOpponentDiscard(tileId);
     }
 
+    private _playActionEffect(seatIndex: number, text: string): void {
+        if (!VisualEffectManager.instance) return;
+        const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);
+        let pos = null;
+        if (relSeat === 0) {
+            pos = this.localPlayerUI?.node?.worldPosition;
+        } else {
+            pos = this.opponentAreas[relSeat - 1]?.node?.worldPosition;
+        }
+        if (pos) {
+            VisualEffectManager.instance.playTextEffect(text, pos);
+        }
+    }
+
     /** 某人碰牌 */
     private _onPeng(data: any): void {
         const { seatIndex, tileId } = data;
+        this._playActionEffect(seatIndex, "碰");
+
         if (seatIndex === this._mySeatIndex) return;
 
         const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);
         this.opponentAreas[relSeat - 1]?.onPeng(tileId);
     }
 
+    /** 某人吃牌 */
+    private _onChi(data: any): void {
+        const { seatIndex, tileId, consumeTileIds } = data;
+        this._playActionEffect(seatIndex, "吃");
+
+        if (seatIndex === this._mySeatIndex) return;
+
+        const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);
+        this.opponentAreas[relSeat - 1]?.onChi(tileId, consumeTileIds);
+    }
+
     /** 某人杠牌 */
     private _onGang(data: any): void {
         const { seatIndex, tileId, gangType } = data;
+        this._playActionEffect(seatIndex, "杠");
+
         if (seatIndex === this._mySeatIndex) return;
 
         const isAnGang = gangType === 'AN';
@@ -196,7 +295,9 @@ export class GameController extends Component {
     /** 某人胡牌 */
     private _onHu(data: any): void {
         const { seatIndex, isSelfDraw } = data;
-        const type = isSelfDraw ? '自摸' : '点炮';
+        const type = isSelfDraw ? '自摸' : '胡';
+        this._playActionEffect(seatIndex, type);
+        
         console.log(`[GameController] Seat ${seatIndex} HU! (${type})`);
         // 胡牌动效可在此处播放（通过 ActionQueue 排队）
     }

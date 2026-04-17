@@ -17,13 +17,18 @@ export interface IGameConfig {
 
 export type WsCallback = (data: any) => void;
 
+interface ICallbackInfo {
+    callback: WsCallback;
+    target?: any;
+}
+
 @ccclass('WebSocketManager')
 export class WebSocketManager {
     private static _instance: WebSocketManager | null = null;
     private _ws: WebSocket | null = null;
     private _isConnected: boolean = false;
     private _config: IGameConfig | null = null;
-    private _callbacks: Map<string, WsCallback[]> = new Map();
+    private _callbacks: Map<string, ICallbackInfo[]> = new Map();
     private _pingInterval: number = -1;
 
     public static get instance(): WebSocketManager {
@@ -31,6 +36,10 @@ export class WebSocketManager {
             this._instance = new WebSocketManager();
         }
         return this._instance;
+    }
+
+    public get userId(): number | undefined {
+        return this._config?.userId;
     }
 
     public connect(config: IGameConfig): void {
@@ -73,19 +82,19 @@ export class WebSocketManager {
         this._ws.send(msgStr);
     }
 
-    public on(type: string, callback: WsCallback): void {
+    public on(type: string, callback: WsCallback, target?: any): void {
         let list = this._callbacks.get(type);
         if (!list) {
             list = [];
             this._callbacks.set(type, list);
         }
-        list.push(callback);
+        list.push({ callback, target });
     }
 
-    public off(type: string, callback: WsCallback): void {
+    public off(type: string, callback: WsCallback, target?: any): void {
         const list = this._callbacks.get(type);
         if (list) {
-            const index = list.indexOf(callback);
+            const index = list.findIndex(item => item.callback === callback && item.target === target);
             if (index > -1) {
                 list.splice(index, 1);
             }
@@ -109,12 +118,16 @@ export class WebSocketManager {
 
             const list = this._callbacks.get(msg.type);
             if (list) {
-                for (const cb of list) {
-                    cb(msg.data);
+                for (const item of list) {
+                    if (item.target) {
+                        item.callback.call(item.target, msg.data);
+                    } else {
+                        item.callback(msg.data);
+                    }
                 }
             }
         } catch (e) {
-            console.error('[WebSocket] Failed to parse message:', event.data, e);
+            console.error('[WebSocket] Callback execution or parsing error:', e);
         }
     }
 

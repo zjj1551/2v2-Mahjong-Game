@@ -15,6 +15,12 @@ export class PlayerUI extends Component {
     @property(Node)
     offlineMask: Node = null!; // 离线蒙层
 
+    @property(Node)
+    zhuangIcon: Node = null!; // 庄家图标
+
+    @property(Label)
+    missSuitLabel: Label = null!; // 定缺标识图标(文本)
+
     /**
      * 更新玩家信息展示
      * @param nickname 昵称
@@ -28,11 +34,27 @@ export class PlayerUI extends Component {
     }
 
     /**
-     * 设置定缺状态显示
-     * @param suitIndex 0-2 (万筒条)
+     * 设置是否为庄家
+     * @param isZhuang 是否为庄家
      */
-    public showMissSuit(suitIndex: number) {
-        // 逻辑：显示一个小图标在头像旁边标识已定缺
-        console.log(`Player miss suit: ${suitIndex}`);
+    public setZhuang(isZhuang: boolean) {
+        if (this.zhuangIcon) {
+            this.zhuangIcon.active = isZhuang;
+        }
+    }
+
+    /**
+     * 设置定缺状态显示
+     * @param suitName 花色名称 (如 "万", "筒", "条")，传空字符串表示隐藏
+     */
+    public setMissSuit(suitName: string) {
+        if (this.missSuitLabel) {
+            if (suitName) {
+                this.missSuitLabel.node.active = true;
+                this.missSuitLabel.string = `缺${suitName}`;
+            } else {
+                this.missSuitLabel.node.active = false;
+            }
+        }
     }
 }

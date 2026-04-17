@@ -22,7 +22,7 @@ export class OpponentArea extends Component {
     labelNickname: Label = null!;
 
     @property(Label)
-    labelHandCount: Label = null!;
+    labelScore: Label = null!;
 
     @property(Node)
     handContainer: Node = null!;
@@ -71,6 +71,13 @@ export class OpponentArea extends Component {
         this._addMeld([tileId, tileId, tileId]);
     }
 
+    /** 对手吃牌（手牌-2，副露+3） */
+    public onChi(tileId: number, consumeTileIds: number[]): void {
+        this._handCount = Math.max(0, this._handCount - 2);
+        this._refreshHandDisplay();
+        this._addMeld([...consumeTileIds, tileId]);
+    }
+
     /** 对手杠牌（手牌-3，副露+4；或手牌-4 暗杠） */
     public onGang(tileId: number, isAnGang: boolean): void {
         const cost = isAnGang ? 4 : 3;
@@ -86,11 +93,14 @@ export class OpponentArea extends Component {
         }
     }
 
-    private _refreshHandDisplay(): void {
-        if (this.labelHandCount) {
-            this.labelHandCount.string = `${this._handCount}张`;
+    /** 更新分数显示 */
+    public setScore(score: number): void {
+        if (this.labelScore) {
+            this.labelScore.string = score.toString();
         }
+    }
 
+    private _refreshHandDisplay(): void {
         if (!this.handContainer || !this.backTilePrefab) return;
         this.handContainer.removeAllChildren();
         for (let i = 0; i < this._handCount; i++) {

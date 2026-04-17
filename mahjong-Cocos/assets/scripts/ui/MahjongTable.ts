@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Prefab, instantiate, Label, Vec3, tween } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, Vec3, tween, v3 } from 'cc';
 import { MahjongTile } from './MahjongTile';
 import { PlayerUI } from './PlayerUI';
 import { WebSocketManager } from '../network/WebSocketManager';
@@ -9,163 +9,95 @@ const { ccclass, property } = _decorator;
 @ccclass('MahjongTable')
 export class MahjongTable extends Component {
     @property(Node)
-    handContainers: Node[] = []; // 0-下, 1-右, 2-上, 3-左
+    bottomHandContainer: Node = null!; // 本地玩家手牌容器
 
     @property(Node)
-    discardContainers: Node[] = []; // 0-下, 1-右, 2-上, 3-左
+    bottomMeldContainer: Node = null!; // 本地玩家副露区
 
-    @property(PlayerUI)
-    playerUIs: PlayerUI[] = []; 
+    @property(Node)
+    bottomDiscardRiver: Node = null!;  // 本地玩家弃牌河
 
     @property(Prefab)
-    tilePrefab: Prefab = null!; 
+    tilePrefab: Prefab = null!;        // 麻将牌预制件
 
-    @property(Label)
-    wallCountLabel: Label = null!; 
-
-    private _mySeatIndex: number = 0; 
+    private _mySeatIndex: number = -1;
 
     protected onLoad() {
         WebSocketManager.instance.on(MessageType.S_GAME_START, this.onGameStart, this);
         WebSocketManager.instance.on(MessageType.S_DRAW, this.onDraw, this);
-        WebSocketManager.instance.on(MessageType.S_ROOM_STATE, this.onRoomStateUpdate, this);
-        WebSocketManager.instance.on(MessageType.S_DISCARD, this.onDiscardBroadcast, this);
+        WebSocketManager.instance.on(MessageType.S_DISCARD, this.onDiscard, this);
     }
 
-    protected start() {
-        // --- 恢复完整的模拟测试 ---
-        const testData = {
-            handTiles: [0, 1, 2, 9, 10, 11, 18, 19, 20, 21, 22, 23, 26], // 13张
-            wallCount: 82
-        };
-        this.scheduleOnce(() => {
-            this.onGameStart(testData);
-        }, 0.5);
-    }
-
-    private getRelativeSeat(targetSeat: number): number {
-        return (targetSeat - this._mySeatIndex + 4) % 4;
-    }
-
-    private onRoomStateUpdate(data: any) {
-        const { players } = data;
-        if (!players) return;
-        players.forEach((p: any) => {
-            const relIndex = this.getRelativeSeat(p.seatIndex);
-            if (this.playerUIs[relIndex]) {
-                this.playerUIs[relIndex].node.active = true;
-                this.playerUIs[relIndex].updateInfo(p.nickname, p.score, p.online);
-            }
-        });
-    }
-
+    /** 游戏开始：渲染初始手牌 */
     private onGameStart(data: any) {
-        const { handTiles, wallCount } = data;
-        
-        // 清理旧牌
-        this.handContainers.forEach(c => { if(c) c.removeAllChildren(); });
-        this.discardContainers.forEach(c => { if(c) c.removeAllChildren(); });
+        const { handTiles } = data;
+        this.bottomHandContainer.removeAllChildren();
+        this.bottomDiscardRiver.removeAllChildren();
+        this.bottomMeldContainer.removeAllChildren();
 
-        // 1. 渲染自己的手牌
-        this.renderMyHand(handTiles);
-        
-        // 2. 渲染三个对手的手牌（背面）
-        for (let i = 1; i < 4; i++) {
-            this.renderOpponentHand(i, 13);
-        }
-
-        if (this.wallCountLabel) {
-            this.wallCountLabel.string = `剩余: ${wallCount}`;
+        if (handTiles) {
+            handTiles.sort((a: number, b: number) => a - b);
+            handTiles.forEach((id: number) => {
+                this._addTileToHand(id);
+            });
         }
     }
 
-    private renderMyHand(tiles: number[]) {
-        const container = this.handContainers[0];
-        if (!container) return;
-        tiles.sort((a, b) => a - b);
-        tiles.forEach(tileId => {
-            const tileNode = instantiate(this.tilePrefab);
-            tileNode.parent = container;
-            const tileComp = tileNode.getComponent(MahjongTile);
-            if (tileComp) tileComp.init(tileId);
+    /** 摸牌 */
+    private onDraw(data: any) {
+        const { tileId, seatIndex } = data;
+        // 如果是我摸牌
+        if (seatIndex === this._mySeatIndex || this._mySeatIndex === -1) {
+            this._addTileToHand(tileId);
+        }
+    }
 
-            tileNode.on(Node.EventType.TOUCH_END, () => {
-                this.playDiscardAction(tileNode, tileId, 0);
-            });
+    /** 向手牌添加一张牌 */
+    private _addTileToHand(tileId: number) {
+        const node = instantiate(this.tilePrefab);
+        node.parent = this.bottomHandContainer;
+        const comp = node.getComponent(MahjongTile);
+        if (comp) comp.init(tileId);
+
+        // 绑定点击出牌事件
+        node.on(Node.EventType.TOUCH_END, () => {
+            this._discardTile(node, tileId);
         });
     }
 
-    private renderOpponentHand(relSeat: number, count: number) {
-        for (let i = 0; i < count; i++) {
-            this.addOneOpponentTile(relSeat);
-        }
-    }
+    /** 出牌逻辑（带动画） */
+    private _discardTile(tileNode: Node, tileId: number) {
+        // 1. 发送给服务端
+        WebSocketManager.instance.send(MessageType.C_DISCARD, { tileId });
 
-    private addOneOpponentTile(relSeat: number) {
-        const container = this.handContainers[relSeat];
-        if (!container) return;
-        const tileNode = instantiate(this.tilePrefab);
-        tileNode.parent = container;
-        const tileComp = tileNode.getComponent(MahjongTile);
-        if (tileComp) tileComp.init(-1); // 显示背面
+        // 2. 播放飞向弃牌河的动画
+        const worldPos = this.bottomDiscardRiver.worldPosition;
         
-        // 根据方位微调
-        if (relSeat === 2) {
-            tileNode.setScale(0.6, 0.6, 1);
-        } else {
-            tileNode.setScale(0.5, 0.5, 1);
-        }
-    }
+        // 临时切换父节点到最外层，防止被 Layout 影响动画
+        const originalPos = tileNode.worldPosition;
+        tileNode.parent = this.node.parent; 
+        tileNode.worldPosition = originalPos;
 
-    private playDiscardAction(tileNode: Node, tileId: number, relSeat: number) {
-        const discardContainer = this.discardContainers[relSeat];
-        if (!discardContainer) {
-            tileNode.destroy();
-            return;
-        }
-
-        const worldPos = discardContainer.worldPosition;
         tween(tileNode)
-            .to(0.15, { position: new Vec3(tileNode.position.x, tileNode.position.y + 60, 0), scale: new Vec3(1.1, 1.1, 1) })
-            .to(0.25, { worldPosition: worldPos, scale: new Vec3(0.5, 0.5, 1) })
+            .to(0.2, { worldPosition: worldPos, scale: v3(0.5, 0.5, 1) }, { easing: 'sineOut' })
             .call(() => {
-                this.addTileToDiscardPile(relSeat, tileId);
+                // 动画结束，放入弃牌河并销毁临时节点
+                this._addTileToRiver(tileId);
                 tileNode.destroy();
             })
             .start();
     }
 
-    private addTileToDiscardPile(relSeat: number, tileId: number) {
-        const container = this.discardContainers[relSeat];
-        if (!container) return;
-        const tileNode = instantiate(this.tilePrefab);
-        tileNode.parent = container;
-        const tileComp = tileNode.getComponent(MahjongTile);
-        if (tileComp) tileComp.init(tileId);
-        tileNode.setScale(0.4, 0.4, 1);
+    /** 真正把牌放入弃牌河 */
+    private _addTileToRiver(tileId: number) {
+        const node = instantiate(this.tilePrefab);
+        node.parent = this.bottomDiscardRiver;
+        node.setScale(v3(0.4, 0.4, 1)); // 弃牌河里的牌小一点
+        node.getComponent(MahjongTile)?.init(tileId);
     }
 
-    private onDiscardBroadcast(data: any) {
-        const { seatIndex, tileId } = data;
-        const relSeat = this.getRelativeSeat(seatIndex);
-        if (relSeat !== 0) {
-            const hand = this.handContainers[relSeat];
-            if (hand && hand.children.length > 0) {
-                this.playDiscardAction(hand.children[0], tileId, relSeat);
-            }
-        }
-    }
-
-    private onDraw(data: any) {
-        const { tileId, seatIndex } = data;
-        const relSeat = this.getRelativeSeat(seatIndex);
-        if (relSeat === 0) {
-            const tileNode = instantiate(this.tilePrefab);
-            tileNode.parent = this.handContainers[0];
-            const tileComp = tileNode.getComponent(MahjongTile);
-            if (tileComp) tileComp.init(tileId);
-        } else {
-            this.addOneOpponentTile(relSeat);
-        }
+    /** 广播：别人打牌（目前只做简单的逻辑，以后可以加动画） */
+    private onDiscard(data: any) {
+        // 这里可以根据 seatIndex 找到对应对手的区域并更新
     }
 }
