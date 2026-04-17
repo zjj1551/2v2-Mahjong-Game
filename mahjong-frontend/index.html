@@ -293,52 +293,81 @@
         </div>
     </div>
 
+    <!-- 单局结算弹窗 -->
     <div id="modal-round-settlement" class="modal-overlay hidden">
         <div class="modal-content glass-panel settlement-modal">
             <button class="btn-close" onclick="gameConsole.closeRoundSettlement()">×</button>
-            <h2 class="modal-title">小局结算</h2>
-            <p id="round-settlement-round" class="settlement-subtitle">第 - 局</p>
-            <div id="round-settlement-summary" class="settlement-summary">本局结果待同步...</div>
-            <div class="table-container">
-                <table class="premium-table">
+
+            <div class="settlement-title-banner">
+                <h2>小局结算</h2>
+            </div>
+            <div class="settlement-title-divider"><span>🀄</span></div>
+
+            <p id="round-settlement-round" class="settlement-subtitle">第 — 局</p>
+
+            <div class="settlement-summary-box">
+                <div id="round-settlement-summary" class="settlement-summary-text">
+                    本局结果待同步...
+                </div>
+            </div>
+
+            <div class="settlement-table-container">
+                <table class="settlement-table">
                     <thead>
                         <tr>
                             <th>排名</th>
-                            <th>座位</th>
                             <th>玩家</th>
-                            <th>本局分数</th>
+                            <th>座位</th>
+                            <th>本局得分</th>
                             <th>结果</th>
                         </tr>
                     </thead>
                     <tbody id="table-round-settlement-body"></tbody>
                 </table>
             </div>
+
             <div class="settlement-actions">
-                <button class="btn-primary" onclick="gameConsole.closeRoundSettlement()">继续下一局</button>
+                <button class="btn-primary" onclick="gameConsole.closeRoundSettlement()">
+                    继续下一局 ▶
+                </button>
             </div>
         </div>
     </div>
 
+    <!-- 整场结算弹窗 -->
     <div id="modal-game-settlement" class="modal-overlay hidden">
         <div class="modal-content glass-panel settlement-modal">
             <button class="btn-close" onclick="gameConsole.finishGameSettlement()">×</button>
-            <h2 class="modal-title">整场结算</h2>
-            <p id="game-settlement-summary" class="settlement-summary">整场结果待同步...</p>
-            <div class="table-container">
-                <table class="premium-table">
+
+            <div class="settlement-title-banner">
+                <h2>整场结算</h2>
+            </div>
+            <div class="settlement-title-divider"><span>🏆</span></div>
+
+            <div class="settlement-summary-box">
+                <div id="game-settlement-summary" class="settlement-summary-text">
+                    <!-- 由JS动态填充 -->
+                </div>
+            </div>
+
+            <div class="settlement-table-container">
+                <table class="settlement-table">
                     <thead>
                         <tr>
-                            <th>排名</th>
-                            <th>座位</th>
+                            <th>最终排名</th>
                             <th>玩家</th>
-                            <th>总分</th>
+                            <th>座位</th>
+                            <th>总积分</th>
                         </tr>
                     </thead>
                     <tbody id="table-game-settlement-body"></tbody>
                 </table>
             </div>
+
             <div class="settlement-actions">
-                <button class="btn-primary" onclick="gameConsole.finishGameSettlement()">返回大厅</button>
+                <button class="btn-primary" onclick="gameConsole.finishGameSettlement()">
+                    🏠 返回大厅
+                </button>
             </div>
         </div>
     </div>

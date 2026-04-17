@@ -88,26 +88,44 @@ class GameConsoleController {
         if (!modal || !roundEl || !summaryEl || !body) return;
 
         const players = Array.isArray(data?.players) ? data.players.slice() : [];
-        players.sort((left, right) => (right.score || 0) - (left.score || 0));
+        players.sort((a, b) => (b.score || 0) - (a.score || 0));
 
         roundEl.innerText = `第 ${data?.round ?? '-'} 局`;
-        const huPlayers = players.filter(player => !!player.hu).map(player => player.nickname);
-        summaryEl.innerText = huPlayers.length
-            ? `胡牌: ${huPlayers.join(' / ')}`
-            : '本局无人胡牌';
+
+        const huPlayers = players.filter(p => !!p.hu).map(p => p.nickname);
+        if (huPlayers.length) {
+            summaryEl.innerHTML = `<span class="settlement-champion-icon">🀄</span>${huPlayers.join(' / ')} 胡牌获胜！`;
+        } else {
+            summaryEl.innerHTML = `<span class="settlement-champion-icon">💨</span> 本局荒庄，无人胡牌`;
+        }
+
+        const rankClasses = ['rank-1', 'rank-2', 'rank-3', 'rank-other'];
+        const rankLabels = ['🥇', '🥈', '🥉', '#4'];
 
         body.innerHTML = players.map((player, index) => {
             const score = Number(player.score || 0);
-            const scoreClass = score > 0 ? 'settlement-score-plus' : (score < 0 ? 'settlement-score-minus' : 'settlement-score-neutral');
-            const scoreText = score > 0 ? `+${score}` : `${score}`;
             const isSelf = Number(player.userId) === Number(this.userId);
+            const scoreClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
+            const scoreText = score > 0 ? `+${score}` : `${score}`;
+            const avatarChar = (player.nickname || '?')[0].toUpperCase();
+            const rankClass = rankClasses[index] || 'rank-other';
+            const rankLabel = index < 3 ? rankLabels[index] : `#${index + 1}`;
+
             return `
-                <tr class="${isSelf ? 'settlement-row-self' : ''}">
-                    <td class="settlement-rank">#${index + 1}</td>
+                <tr class="${isSelf ? 'is-self' : ''}">
+                    <td><span class="rank-badge ${rankClass}">${rankLabel}</span></td>
+                    <td>
+                        <div class="player-cell">
+                            <div class="player-avatar-mini">${avatarChar}</div>
+                            <div class="player-name-block">
+                                <span class="player-name-text">${player.nickname || '-'}</span>
+                                ${isSelf ? '<span class="player-self-tag">我</span>' : ''}
+                            </div>
+                        </div>
+                    </td>
                     <td>${player.seatIndex ?? '-'}</td>
-                    <td>${player.nickname || '-'}${isSelf ? ' (我)' : ''}</td>
-                    <td class="${scoreClass}">${scoreText}</td>
-                    <td>${player.hu ? '胡牌' : '未胡牌'}</td>
+                    <td><span class="score-cell ${scoreClass}">${scoreText}</span></td>
+                    <td><span class="hu-badge ${player.hu ? 'won' : 'lost'}">${player.hu ? '胡牌' : '未胡'}</span></td>
                 </tr>
             `;
         }).join('');
@@ -122,22 +140,38 @@ class GameConsoleController {
         if (!modal || !summaryEl || !body) return;
 
         const players = Array.isArray(data?.players) ? data.players.slice() : [];
-        players.sort((left, right) => (right.totalScore || 0) - (left.totalScore || 0));
+        players.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
 
         const champion = players[0]?.nickname || '-';
-        summaryEl.innerText = `本场冠军: ${champion}`;
+        summaryEl.innerHTML = `<span class="settlement-champion-icon">🏆</span> 本场冠军：<strong style="color:#ffe57a;">${champion}</strong>`;
+
+        const rankClasses = ['rank-1', 'rank-2', 'rank-3', 'rank-other'];
+        const rankLabels = ['🥇', '🥈', '🥉', '#4'];
 
         body.innerHTML = players.map((player, index) => {
             const score = Number(player.totalScore || 0);
-            const scoreClass = score > 0 ? 'settlement-score-plus' : (score < 0 ? 'settlement-score-minus' : 'settlement-score-neutral');
-            const scoreText = score > 0 ? `+${score}` : `${score}`;
             const isSelf = Number(player.userId) === Number(this.userId);
+            const scoreClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
+            const scoreText = score > 0 ? `+${score}` : `${score}`;
+            const avatarChar = (player.nickname || '?')[0].toUpperCase();
+            const rankClass = rankClasses[index] || 'rank-other';
+            const rankLabel = index < 3 ? rankLabels[index] : `#${index + 1}`;
+
             return `
-                <tr class="${isSelf ? 'settlement-row-self' : ''}">
-                    <td class="settlement-rank">#${index + 1}</td>
+                <tr class="${isSelf ? 'is-self' : ''}">
+                    <td><span class="rank-badge ${rankClass}">${rankLabel}</span></td>
+                    <td>
+                        <div class="player-cell">
+                            <div class="player-avatar-mini">${avatarChar}</div>
+                            <div class="player-name-block">
+                                <span class="player-name-text">${player.nickname || '-'}</span>
+                                ${isSelf ? '<span class="player-self-tag">我</span>' : ''}
+                                ${index === 0 ? '<span class="player-self-tag" style="color:#ffe57a;border-color:rgba(255,229,122,0.4);">冠军</span>' : ''}
+                            </div>
+                        </div>
+                    </td>
                     <td>${player.seatIndex ?? '-'}</td>
-                    <td>${player.nickname || '-'}${isSelf ? ' (我)' : ''}</td>
-                    <td class="${scoreClass}">${scoreText}</td>
+                    <td><span class="score-cell ${scoreClass}">${scoreText}</span></td>
                 </tr>
             `;
         }).join('');

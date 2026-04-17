@@ -1096,17 +1096,370 @@
     transform: translateY(0);
 }
 
+/* ============================================================
+   结算画面 — Premium Settlement Screen
+   ============================================================ */
+
+/* --- 结算弹窗容器 --- */
 .settlement-modal {
-    max-width: 860px;
+    max-width: 780px;
+    position: relative;
+    overflow: visible;
 }
 
+/* --- 闪光粒子背景层 --- */
+.settlement-modal::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background:
+        radial-gradient(ellipse 60% 40% at 50% -10%, rgba(212, 175, 55, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 110%, rgba(83, 182, 255, 0.1) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: -1;
+    border-radius: 30px;
+    animation: settlementGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes settlementGlow {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+/* --- 标题 --- */
+.settlement-title-banner {
+    position: relative;
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+.settlement-title-banner h2 {
+    font-size: 1.75rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    background: linear-gradient(135deg, #ffe57a 0%, #d4af37 40%, #fff8e1 70%, #d4af37 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    animation: shimmerText 2.5s ease-in-out infinite;
+    background-size: 200% auto;
+}
+
+@keyframes shimmerText {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+}
+
+/* 标题下方的装饰线 */
+.settlement-title-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 18px;
+}
+
+.settlement-title-divider::before,
+.settlement-title-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.6), transparent);
+}
+
+.settlement-title-divider span {
+    font-size: 1.2rem;
+}
+
+/* --- 局数/场次副标题 --- */
 .settlement-subtitle {
     text-align: center;
     color: var(--text-muted);
-    margin-top: -14px;
-    margin-bottom: 14px;
+    font-size: 0.88rem;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
 }
 
+/* --- 结算摘要信息（胡牌者/冠军） --- */
+.settlement-summary-box {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.06));
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 14px;
+    padding: 12px 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.settlement-summary-box::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+    animation: sweepShine 3s ease-in-out infinite;
+}
+
+@keyframes sweepShine {
+    0% { left: -60%; }
+    100% { left: 120%; }
+}
+
+.settlement-summary-text {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    letter-spacing: 1px;
+}
+
+.settlement-champion-icon {
+    font-size: 1.4rem;
+    margin-right: 6px;
+    display: inline-block;
+    animation: bounceChampion 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes bounceChampion {
+    0% { transform: translateY(0) scale(1); }
+    100% { transform: translateY(-4px) scale(1.12); }
+}
+
+/* --- 结算表格 --- */
+.settlement-table-container {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    margin-bottom: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.settlement-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.97rem;
+}
+
+.settlement-table thead tr {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.08));
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.settlement-table thead th {
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: rgba(212, 175, 55, 0.9);
+    text-transform: uppercase;
+    text-align: left;
+}
+
+.settlement-table thead th:last-child,
+.settlement-table tbody td:last-child {
+    text-align: center;
+}
+
+.settlement-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.2s;
+    animation: rowFadeIn 0.4s ease both;
+}
+
+.settlement-table tbody tr:nth-child(1) { animation-delay: 0.08s; }
+.settlement-table tbody tr:nth-child(2) { animation-delay: 0.18s; }
+.settlement-table tbody tr:nth-child(3) { animation-delay: 0.28s; }
+.settlement-table tbody tr:nth-child(4) { animation-delay: 0.38s; }
+
+@keyframes rowFadeIn {
+    from { opacity: 0; transform: translateX(-14px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.settlement-table tbody tr:hover {
+    background: rgba(212, 175, 55, 0.06);
+}
+
+.settlement-table tbody td {
+    padding: 14px 16px;
+    color: var(--text-main);
+    vertical-align: middle;
+}
+
+/* --- 自己的行高亮 --- */
+.settlement-table tbody tr.is-self {
+    background: rgba(212, 175, 55, 0.1);
+    box-shadow: inset 3px 0 0 rgba(212, 175, 55, 0.7);
+}
+
+.settlement-table tbody tr.is-self:hover {
+    background: rgba(212, 175, 55, 0.15);
+}
+
+/* --- 排名徽章 --- */
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-weight: 900;
+    font-size: 0.9rem;
+}
+
+.rank-badge.rank-1 {
+    background: linear-gradient(135deg, #ffe57a, #c9a02a);
+    color: #3d2800;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.5);
+    animation: medalPulse 1.8s ease-in-out infinite;
+}
+
+.rank-badge.rank-2 {
+    background: linear-gradient(135deg, #e8e8e8, #a0a0a0);
+    color: #2a2a2a;
+    box-shadow: 0 0 8px rgba(200, 200, 200, 0.3);
+}
+
+.rank-badge.rank-3 {
+    background: linear-gradient(135deg, #e8a56c, #a05a20);
+    color: #3d1c00;
+    box-shadow: 0 0 8px rgba(180, 100, 30, 0.3);
+}
+
+.rank-badge.rank-other {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes medalPulse {
+    0%, 100% { box-shadow: 0 0 14px rgba(255, 215, 0, 0.5); }
+    50%       { box-shadow: 0 0 26px rgba(255, 215, 0, 0.8); }
+}
+
+/* --- 玩家名称区域 --- */
+.player-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.player-avatar-mini {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.15);
+    border: 1.5px solid rgba(212, 175, 55, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.player-name-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.player-name-text {
+    font-weight: 600;
+    font-size: 0.97rem;
+    color: var(--text-main);
+}
+
+.player-self-tag {
+    font-size: 0.72rem;
+    color: var(--color-primary);
+    background: rgba(212, 175, 55, 0.15);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 4px;
+    padding: 0 5px;
+    letter-spacing: 1px;
+    display: inline-block;
+    line-height: 1.5;
+}
+
+/* --- 分数列 --- */
+.score-cell {
+    font-size: 1.2rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+
+.score-cell.positive {
+    color: #4cde80;
+    text-shadow: 0 0 12px rgba(76, 222, 128, 0.4);
+}
+
+.score-cell.negative {
+    color: #ff6b6b;
+    text-shadow: 0 0 12px rgba(255, 107, 107, 0.3);
+}
+
+.score-cell.zero {
+    color: var(--text-muted);
+}
+
+/* --- 状态标签 (胡牌 / 未胡) --- */
+.hu-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.hu-badge.won {
+    background: rgba(76, 222, 128, 0.15);
+    border: 1px solid rgba(76, 222, 128, 0.4);
+    color: #4cde80;
+}
+
+.hu-badge.lost {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+}
+
+/* --- 结算操作按钮区 --- */
+.settlement-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 6px;
+}
+
+.settlement-actions .btn-primary {
+    padding: 12px 40px;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.settlement-actions .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.12) 60%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+}
+
+.settlement-actions .btn-primary:hover::after {
+    transform: translateX(100%);
+}
+
+/* --- 旧版兼容 (保留，防止遗漏引用) --- */
 .settlement-summary {
     text-align: center;
     color: var(--color-accent);
@@ -1137,12 +1490,6 @@
 .settlement-score-neutral {
     color: var(--text-main);
     font-weight: 700;
-}
-
-.settlement-actions {
-    margin-top: 18px;
-    display: flex;
-    justify-content: center;
 }
 
 .modal-title {
