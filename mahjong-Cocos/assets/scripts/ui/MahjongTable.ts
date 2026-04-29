@@ -3,6 +3,7 @@ import { MahjongTile } from './MahjongTile';
 import { PlayerUI } from './PlayerUI';
 import { WebSocketManager } from '../network/WebSocketManager';
 import { MessageType } from '../core/TileConstants';
+import { DiscardRiver } from './DiscardRiver';
 
 const { ccclass, property } = _decorator;
 
@@ -14,8 +15,8 @@ export class MahjongTable extends Component {
     @property(Node)
     bottomMeldContainer: Node = null!; // 本地玩家副露区
 
-    @property(Node)
-    bottomDiscardRiver: Node = null!;  // 本地玩家弃牌河
+    @property(DiscardRiver)
+    bottomDiscardRiver: DiscardRiver = null!;  // 本地玩家弃牌河
 
     @property(Prefab)
     tilePrefab: Prefab = null!;        // 麻将牌预制件
@@ -32,7 +33,7 @@ export class MahjongTable extends Component {
     private onGameStart(data: any) {
         const { handTiles } = data;
         this.bottomHandContainer.removeAllChildren();
-        this.bottomDiscardRiver.removeAllChildren();
+        if (this.bottomDiscardRiver) this.bottomDiscardRiver.clear();
         this.bottomMeldContainer.removeAllChildren();
 
         if (handTiles) {
@@ -71,7 +72,7 @@ export class MahjongTable extends Component {
         WebSocketManager.instance.send(MessageType.C_DISCARD, { tileId });
 
         // 2. 播放飞向弃牌河的动画
-        const worldPos = this.bottomDiscardRiver.worldPosition;
+        const worldPos = this.bottomDiscardRiver.node.worldPosition;
         
         // 临时切换父节点到最外层，防止被 Layout 影响动画
         const originalPos = tileNode.worldPosition;
@@ -90,10 +91,9 @@ export class MahjongTable extends Component {
 
     /** 真正把牌放入弃牌河 */
     private _addTileToRiver(tileId: number) {
-        const node = instantiate(this.tilePrefab);
-        node.parent = this.bottomDiscardRiver;
-        node.setScale(v3(0.4, 0.4, 1)); // 弃牌河里的牌小一点
-        node.getComponent(MahjongTile)?.init(tileId);
+        if (this.bottomDiscardRiver) {
+            this.bottomDiscardRiver.addDiscard(tileId);
+        }
     }
 
     /** 广播：别人打牌（目前只做简单的逻辑，以后可以加动画） */

@@ -135,7 +135,7 @@ export class GameController extends Component {
 
     /** 房间状态同步（进入房间/断线重连时） */
     private _onRoomState(data: any): void {
-        const { status, players } = data;
+        const { status, players, dealerSeat } = data;
         const myUserId = WebSocketManager.instance.userId;
 
         // 找到自己的座位
@@ -152,11 +152,17 @@ export class GameController extends Component {
 
         // 初始化对手区域
         for (const p of players) {
-            if (p.userId === myUserId) continue;
+            if (p.userId === myUserId) {
+                if (this.localPlayerUI) {
+                    this.localPlayerUI.setZhuang(p.seatIndex === dealerSeat);
+                }
+                continue;
+            }
             const relSeat = GameData.getRelativeSeat(this._mySeatIndex, p.seatIndex);
             // relSeat: 1=右家, 2=对家, 3=左家 → 映射到 opponentAreas[0..2]
             const area = this.opponentAreas[relSeat - 1];
             area?.init(p.seatIndex, p.nickname ?? `玩家${p.seatIndex}`, 13);
+            area?.setZhuang(p.seatIndex === dealerSeat);
         }
     }
 
@@ -169,9 +175,21 @@ export class GameController extends Component {
         this._updateWallCount(wallCount);
         this.centerManager?.setActiveDirection(dealerSeat);
         
+        if (this.localPlayerUI) {
+            this.localPlayerUI.setZhuang(this._mySeatIndex === dealerSeat);
+            this.localPlayerUI.node.setSiblingIndex(999);
+        }
+
         // 初始化对手手牌为 13 张
         this.opponentAreas.forEach(area => {
-            if (area) area.init(area.seatIndex, area.labelNickname.string, 13);
+            if (area) {
+                area.init(area.seatIndex, area.labelNickname.string, 13);
+                area.setZhuang(area.seatIndex === dealerSeat);
+                const playerNode = area.labelNickname?.node?.parent;
+                if (playerNode) {
+                    playerNode.setSiblingIndex(999);
+                }
+            }
         });
 
         console.log('[GameController] Game started, dealer:', dealerSeat);

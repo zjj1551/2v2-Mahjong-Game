@@ -21,6 +21,24 @@ export class PlayerUI extends Component {
     @property(Label)
     missSuitLabel: Label = null!; // 定缺标识图标(文本)
 
+    protected onLoad() {
+        if (!this.zhuangIcon) {
+            this.zhuangIcon = this.node.getChildByName('ZhuangIcon');
+        }
+        if (!this.missSuitLabel) {
+            const missNode = this.node.getChildByName('MissSuitLabel');
+            if (missNode) {
+                this.missSuitLabel = missNode.getComponent(Label);
+            }
+        }
+        if (this.missSuitLabel) {
+            this.missSuitLabel.node.active = false;
+        }
+        if (this.zhuangIcon) {
+            this.zhuangIcon.active = false;
+        }
+    }
+
     /**
      * 更新玩家信息展示
      * @param nickname 昵称

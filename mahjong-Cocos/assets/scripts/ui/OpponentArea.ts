@@ -1,6 +1,7 @@
 import { _decorator, Component, Node, Label, Prefab, instantiate } from 'cc';
 import { MahjongTile } from './MahjongTile';
 import { DiscardRiver } from './DiscardRiver';
+import { PlayerUI } from './PlayerUI';
 const { ccclass, property } = _decorator;
 
 /**
@@ -41,11 +42,13 @@ export class OpponentArea extends Component {
 
     private _seatIndex: number = -1;
     private _handCount: number = 0;
+    private _originalNickname: string = "";
 
     /** 初始化对手信息 */
     public init(seatIndex: number, nickname: string, handCount: number): void {
         this._seatIndex = seatIndex;
         this._handCount = handCount;
+        this._originalNickname = nickname;
         if (this.labelNickname) this.labelNickname.string = nickname;
         this._refreshHandDisplay();
         this.discardRiver?.clear();
@@ -88,8 +91,9 @@ export class OpponentArea extends Component {
 
     /** 设置定缺花色标识（可选：在昵称旁显示定缺花色） */
     public setMissSuit(suitName: string): void {
-        if (this.labelNickname) {
-            this.labelNickname.string = `${this.labelNickname.string} [缺${suitName}]`;
+        const ui = this.labelNickname?.node?.parent?.getComponent(PlayerUI);
+        if (ui) {
+            ui.setMissSuit(suitName);
         }
     }
 
@@ -97,6 +101,14 @@ export class OpponentArea extends Component {
     public setScore(score: number): void {
         if (this.labelScore) {
             this.labelScore.string = score.toString();
+        }
+    }
+    
+    /** 设置是否为庄家 */
+    public setZhuang(isZhuang: boolean): void {
+        const ui = this.labelNickname?.node?.parent?.getComponent(PlayerUI);
+        if (ui) {
+            ui.setZhuang(isZhuang);
         }
     }
 
