@@ -86,6 +86,7 @@ export class GameController extends Component {
     private _actionQueue: ActionQueue = new ActionQueue();
 
     protected onLoad(): void {
+        WebSocketManager.instance.initIframeBridge();
         const ws = WebSocketManager.instance;
         ws.on(MessageType.S_ROOM_STATE,    this._onRoomState,    this);
         ws.on(MessageType.S_GAME_START,    this._onGameStart,    this);
@@ -102,11 +103,12 @@ export class GameController extends Component {
         ws.on(MessageType.S_ERROR,         this._onError,        this);
     }
 
-    protected onDestroy(): void {
+    protected onLoad(): void {
         const ws = WebSocketManager.instance;
-        ws.off(MessageType.S_ROOM_STATE,    this._onRoomState);
-        ws.off(MessageType.S_GAME_START,    this._onGameStart);
-        ws.off(MessageType.S_SELECT_MISS_SUIT, this._onStartMissSuit);
+        ws.initIframeBridge();
+        ws.on(MessageType.S_ROOM_STATE,    this._onRoomState,    this);
+        ws.on(MessageType.S_GAME_START,    this._onGameStart,    this);
+        ws.on(MessageType.S_SELECT_MISS_SUIT, this._onStartMissSuit, this);
         ws.off(MessageType.S_MISS_SUIT_RESULT, this._onMissSuitResult);
         ws.off(MessageType.S_DRAW,          this._onDraw);
         ws.off(MessageType.S_DISCARD,       this._onDiscard);
