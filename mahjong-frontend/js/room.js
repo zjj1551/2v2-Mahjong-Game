@@ -9,6 +9,13 @@ class RoomController {
         this.isReady = false;
         this.isCreator = false;
         this.roomStatus = 'WAITING';
+        this.cocosFrame = null;
+        this.cocosReady = false;
+        this.latestRoomState = null;
+        this.latestGameStartData = null;
+        this.cocosBuildPath = window.COCOS_BUILD_PATH || '/cocos-build/web-desktop/index.html';
+
+        window.addEventListener('message', (event) => this.onCocosMessage(event));
     }
 
     // 进入房间入口 (由 Lobby 调用)
@@ -55,15 +62,8 @@ class RoomController {
 
     enterGameView(gameStartData) {
         document.getElementById('lbl-game-room-id').innerText = this.currentRoomId || '-';
-        const stageEl = document.getElementById('cocos-game-stage');
-        if (stageEl) {
-            stageEl.innerHTML = `
-                <div class="cocos-stage-placeholder">
-                    <div class="cocos-stage-title">Cocos 对局画面</div>
-                    <div class="cocos-stage-subtitle">座位 ${gameStartData?.seatIndex ?? '-'} · 第 ${gameStartData?.round ?? '-'} 局</div>
-                </div>
-            `;
-        }
+        this.latestGameStartData = gameStartData || null;
+        this.mountCocos(gameStartData);
         app.switchView('game');
     }
 
@@ -103,6 +103,9 @@ class RoomController {
         this.isReady = false;
         this.isCreator = false;
         this.roomStatus = 'WAITING';
+        this.latestRoomState = null;
+        this.latestGameStartData = null;
+        this.unmountCocos();
         
         // 显式隐藏房间头部的管理按钮区
         const creatorEl = document.getElementById('creator-controls');
@@ -118,6 +121,7 @@ class RoomController {
     handleRoomStateUpdate(data) {
         if (!data) return;
         
+        this.latestRoomState = data;
         this.currentRoomId = data.roomId;
         if (window.lobby) window.lobby.saveRoomContext(data.roomId);
         this.isCreator = data.creatorId === app.state.user.userId;
@@ -152,6 +156,94 @@ class RoomController {
 
         this.renderSeats();
         this.updateActionButtons(data);
+    }
+
+    mountCocos(gameStartData) {
+        const stageEl = document.getElementById('cocos-game-stage');
+        if (!stageEl) return;
+
+        stageEl.innerHTML = '';
+        const iframe = document.createElement('iframe');
+        iframe.id = 'cocos-iframe';
+        iframe.className = 'cocos-iframe';
+        iframe.src = this.cocosBuildPath;
+        iframe.allowTransparency = 'true';
+        iframe.setAttribute('loading', 'eager');
+        iframe.setAttribute('referrerpolicy', 'no-referrer');
+
+        iframe.addEventListener('load', () => {
+            this.cocosReady = false;
+            if (gameStartData) {
+                this.sendToCocos('S_GAME_START', gameStartData);
+            }
+            if (this.latestRoomState) {
+                this.sendToCocos('S_ROOM_STATE', this.latestRoomState);
+            }
+        });
+
+        stageEl.appendChild(iframe);
+        this.cocosFrame = iframe;
+    }
+
+    unmountCocos() {
+        if (this.cocosFrame && this.cocosFrame.parentElement) {
+            this.cocosFrame.parentElement.innerHTML = '';
+        }
+        this.cocosFrame = null;
+        this.cocosReady = false;
+    }
+
+    onCocosMessage(event) {
+        if (event.origin !== window.location.origin) return;
+        const data = event.data || {};
+        if (!data.type) return;
+
+        if (data.type === 'COCOS_READY') {
+            this.cocosReady = true;
+            if (this.latestRoomState) {
+                this.sendToCocos('S_ROOM_STATE', this.latestRoomState);
+            }
+            if (this.latestGameStartData) {
+                this.sendToCocos('S_GAME_START', this.latestGameStartData);
+            }
+            return;
+        }
+
+        if (data.type === 'COCOS_SEND_WS') {
+            const action = data.payload?.action;
+            const payload = data.payload?.data || {};
+            if (!action || !window.lobby) return;
+            window.lobby.sendWsMessage(action, this.currentRoomId, payload);
+        }
+    }
+
+    forwardToCocos(msg) {
+        if (!this.cocosFrame) return;
+        if (!msg || !msg.type) return;
+        const allowed = new Set([
+            'S_ROOM_STATE',
+            'S_GAME_START',
+            'S_SELECT_MISS_SUIT',
+            'S_MISS_SUIT_RESULT',
+            'S_DRAW',
+            'S_DISCARD',
+            'S_ACTION_OPTIONS',
+            'S_CHI',
+            'S_PENG',
+            'S_GANG',
+            'S_HU',
+            'S_ROUND_RESULT',
+            'S_GAME_OVER',
+            'S_COUNTDOWN'
+        ]);
+
+        if (!allowed.has(msg.type)) return;
+        this.sendToCocos(msg.type, msg.data || {});
+    }
+
+    sendToCocos(action, payload) {
+        if (!this.cocosFrame || !this.cocosFrame.contentWindow) return;
+        this.cocosFrame.contentWindow.postMessage({ action, payload }, window.location.origin);
     }
 
     // 渲染四个座位 UI

@@ -183,6 +183,7 @@ class LobbyController {
                         window.room.handleRoomStateUpdate(data);
                     }
                 }
+                if (window.room) window.room.forwardToCocos(msg);
                 if (window.gameConsole && window.gameConsole.isOpen) {
                     window.gameConsole.handleServerMessage(msg);
                 }
@@ -219,6 +220,7 @@ class LobbyController {
 
             case 'S_GAME_START':
                 this.simulateCocosTransition(data);
+                if (window.room) window.room.forwardToCocos(msg);
                 break;
 
             case 'S_ERROR':
@@ -238,6 +240,7 @@ class LobbyController {
                 if (window.gameConsole && gameMessageTypes.has(type)) {
                     window.gameConsole.handleServerMessage(msg);
                 }
+                if (window.room) window.room.forwardToCocos(msg);
                 break;
         }
     }
