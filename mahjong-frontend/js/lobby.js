@@ -155,6 +155,9 @@ class LobbyController {
     handleServerMessage(msg) {
         const type = msg.type;
         const data = msg.data || {};
+        if (type === 'S_ERROR' && window.room) {
+            window.room.forwardToCocos(msg);
+        }
 
         const gameMessageTypes = new Set([
             'S_GAME_START',
@@ -169,6 +172,7 @@ class LobbyController {
             'S_HU',
             'S_ROUND_RESULT',
             'S_GAME_OVER',
+            'S_ERROR',
             'S_PONG'
         ]);
 
@@ -227,6 +231,9 @@ class LobbyController {
                 app.showError(data.message || '操作失败');
                 if (window.gameConsole && window.gameConsole.isOpen) {
                     window.gameConsole.handleServerMessage(msg);
+                }
+                if (window.room) {
+                    window.room.forwardToCocos(msg);
                 }
                 break;
 

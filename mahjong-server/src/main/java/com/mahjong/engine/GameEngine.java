@@ -157,6 +157,9 @@ public class GameEngine {
         Player player = room.getPlayer(seatIndex);
         Tile discarded = player.discardTile(tileId);
         state.recordDiscard(seatIndex, discarded);
+        
+        // 关键防连点修复：出牌后立即清空等待座位，防止在等待其他人碰杠胡的这段时间内容许该玩家再次出牌
+        state.setAwaitingSeat(-1);
 
         log.info("玩家 seat=" + seatIndex + " 打出: " + discarded);
 

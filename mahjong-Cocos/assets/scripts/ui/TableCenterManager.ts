@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, resources, Label, error } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, resources, error, Vec3 } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('TableCenterManager')
@@ -20,10 +20,14 @@ export class TableCenterManager extends Component {
 
     private _countdown: number = 0;
     private _timer: any = null;
+    private _localSeatIndex: number = 0;
+    private _directionSlots: Vec3[] = [];
 
     protected onLoad() {
+        this._captureDirectionSlots();
         this.loadStaticSprite(this.bgSprite, 'textures/dir/dir_bg/spriteFrame');
         this.loadStaticSprite(this.middleSprite, 'textures/dir/middle/spriteFrame');
+        this._layoutDirectionsForLocalSeat();
     }
 
     private loadStaticSprite(sprite: Sprite, path: string) {
@@ -39,10 +43,35 @@ export class TableCenterManager extends Component {
      * 设置当前活跃方位
      * @param seatIndex 0-3
      */
+    public setLocalSeatIndex(seatIndex: number) {
+        if (seatIndex < 0 || seatIndex > 3) return;
+        this._localSeatIndex = seatIndex;
+        this._captureDirectionSlots();
+        this._layoutDirectionsForLocalSeat();
+    }
+
     public setActiveDirection(seatIndex: number) {
+        if (seatIndex < 0 || seatIndex > 3) return;
         this.dirNodes.forEach((node, index) => {
             node.active = (index === seatIndex);
         });
+    }
+
+    private _layoutDirectionsForLocalSeat() {
+        if (this._directionSlots.length !== this.dirNodes.length) return;
+
+        this.dirNodes.forEach((node, absoluteSeat) => {
+            const relativeSeat = (absoluteSeat - this._localSeatIndex + 4) % 4;
+            const slot = this._directionSlots[relativeSeat];
+            if (slot) {
+                node.setPosition(slot);
+            }
+        });
+    }
+
+    private _captureDirectionSlots() {
+        if (this._directionSlots.length === this.dirNodes.length) return;
+        this._directionSlots = this.dirNodes.map(node => node.position.clone());
     }
 
     /**

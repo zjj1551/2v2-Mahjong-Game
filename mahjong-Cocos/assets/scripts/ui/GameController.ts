@@ -83,6 +83,7 @@ export class GameController extends Component {
     localPlayerUI: PlayerUI = null!; // 本地玩家的 UI
 
     private _mySeatIndex: number = -1;
+    private _isReady: boolean = false;
     private _actionQueue: ActionQueue = new ActionQueue();
 
     protected onLoad(): void {
@@ -103,30 +104,7 @@ export class GameController extends Component {
         ws.on(MessageType.S_ERROR,         this._onError,        this);
     }
 
-    protected onLoad(): void {
-        const ws = WebSocketManager.instance;
-        ws.initIframeBridge();
-        ws.on(MessageType.S_ROOM_STATE,    this._onRoomState,    this);
-        ws.on(MessageType.S_GAME_START,    this._onGameStart,    this);
-        ws.on(MessageType.S_SELECT_MISS_SUIT, this._onStartMissSuit, this);
-        ws.off(MessageType.S_MISS_SUIT_RESULT, this._onMissSuitResult);
-        ws.off(MessageType.S_DRAW,          this._onDraw);
-        ws.off(MessageType.S_DISCARD,       this._onDiscard);
-        ws.off(MessageType.S_PENG,          this._onPeng);
-        ws.off(MessageType.S_CHI,           this._onChi);
-        ws.off(MessageType.S_GANG,          this._onGang);
-        ws.off(MessageType.S_GANG_DRAW,     this._onGangDraw);
-        ws.off(MessageType.S_HU,            this._onHu);
-        ws.off(MessageType.S_COUNTDOWN,     this._onCountdown);
-        ws.off(MessageType.S_ERROR,         this._onError);
-    }
-
     // ─── 按钮点击 ─────────────────────────────────────────────
-
-    public onReadyClick(): void {
-        this._isReady = !this._isReady;
-        WebSocketManager.instance.send('C_READY', { isReady: this._isReady });
-    }
 
     public onLeaveClick(): void {
         WebSocketManager.instance.send('C_LEAVE_ROOM', {});
@@ -137,7 +115,8 @@ export class GameController extends Component {
 
     /** 房间状态同步（进入房间/断线重连时） */
     private _onRoomState(data: any): void {
-        const { status, players, dealerSeat } = data;
+        const { status, dealerSeat } = data;
+        const players = data?.players ?? (data?.seats ?? []).filter((p: any) => p.occupied);
         const myUserId = WebSocketManager.instance.userId;
 
         // 找到自己的座位
@@ -145,6 +124,8 @@ export class GameController extends Component {
         if (me) {
             this._mySeatIndex = me.seatIndex;
             this._isReady = me.ready;
+            this.mahjongTable?.setMySeatIndex(this._mySeatIndex);
+            this.centerManager?.setLocalSeatIndex(this._mySeatIndex);
         }
 
         // 更新准备面板显示
@@ -173,9 +154,17 @@ export class GameController extends Component {
         if (this.readyPanel) this.readyPanel.active = false;
         if (this.tingIndicator) this.tingIndicator.hide();
         this._actionQueue.clear();
-        const { handTiles, dealerSeat, wallCount } = data;
+        const { handTiles, wallCount } = data;
+        const dealerSeat = data?.dealerSeat ?? data?.bankerSeat;
+        if (typeof data?.seatIndex === 'number') {
+            this._mySeatIndex = data.seatIndex;
+        }
         this._updateWallCount(wallCount);
-        this.centerManager?.setActiveDirection(dealerSeat);
+        this.mahjongTable?.setMySeatIndex(this._mySeatIndex);
+        this.centerManager?.setLocalSeatIndex(this._mySeatIndex);
+        if (typeof dealerSeat === 'number') {
+            this.centerManager?.setActiveDirection(dealerSeat);
+        }
         
         if (this.localPlayerUI) {
             this.localPlayerUI.setZhuang(this._mySeatIndex === dealerSeat);
@@ -222,6 +211,9 @@ export class GameController extends Component {
     /** 摸牌（只有自己能收到） */
     private _onDraw(data: any): void {
         this._updateWallCount(data?.wallCount);
+        if (typeof data?.seatIndex === 'number') {
+            this.centerManager?.setActiveDirection(data.seatIndex);
+        }
         this.centerManager?.startCountdown(20);
 
         // 听牌提示
@@ -276,7 +268,10 @@ export class GameController extends Component {
         const { seatIndex, tileId } = data;
         this._playActionEffect(seatIndex, "碰");
 
-        if (seatIndex === this._mySeatIndex) return;
+        if (seatIndex === this._mySeatIndex) {
+            this.mahjongTable?.onPeng(tileId);
+            return;
+        }
 
         const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);
         this.opponentAreas[relSeat - 1]?.onPeng(tileId);
@@ -287,7 +282,10 @@ export class GameController extends Component {
         const { seatIndex, tileId, consumeTileIds } = data;
         this._playActionEffect(seatIndex, "吃");
 
-        if (seatIndex === this._mySeatIndex) return;
+        if (seatIndex === this._mySeatIndex) {
+            this.mahjongTable?.onChi(tileId, consumeTileIds);
+            return;
+        }
 
         const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);
         this.opponentAreas[relSeat - 1]?.onChi(tileId, consumeTileIds);
@@ -298,7 +296,10 @@ export class GameController extends Component {
         const { seatIndex, tileId, gangType } = data;
         this._playActionEffect(seatIndex, "杠");
 
-        if (seatIndex === this._mySeatIndex) return;
+        if (seatIndex === this._mySeatIndex) {
+            this.mahjongTable?.onGang(tileId, gangType);
+            return;
+        }
 
         const isAnGang = gangType === 'AN';
         const relSeat = GameData.getRelativeSeat(this._mySeatIndex, seatIndex);

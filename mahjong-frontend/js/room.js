@@ -232,6 +232,7 @@ class RoomController {
             'S_PENG',
             'S_GANG',
             'S_HU',
+            'S_ERROR',
             'S_ROUND_RESULT',
             'S_GAME_OVER',
             'S_COUNTDOWN'
@@ -243,7 +244,11 @@ class RoomController {
 
     sendToCocos(action, payload) {
         if (!this.cocosFrame || !this.cocosFrame.contentWindow) return;
-        this.cocosFrame.contentWindow.postMessage({ action, payload }, window.location.origin);
+        const enrichedPayload = {
+            ...(payload || {}),
+            myUserId: app.state.user?.userId
+        };
+        this.cocosFrame.contentWindow.postMessage({ action, payload: enrichedPayload }, window.location.origin);
     }
 
     // 渲染四个座位 UI

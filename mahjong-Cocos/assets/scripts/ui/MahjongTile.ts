@@ -14,6 +14,10 @@ export class MahjongTile extends Component {
         this.updateView();
     }
 
+    public get tileId(): number {
+        return this._tileId;
+    }
+
     private updateView() {
         const spriteName = TILE_MAP[this._tileId];
         if (!spriteName) return;

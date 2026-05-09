@@ -30,8 +30,6 @@ export class WebSocketManager {
     private _config: IGameConfig | null = null;
     private _callbacks: Map<string, ICallbackInfo[]> = new Map();
     private _pingInterval: number = -1;
-
-    // Used in iframe mode to know the local userId
     private _iframeUserId: number = -1;
 
     public static get instance(): WebSocketManager {
@@ -48,43 +46,35 @@ export class WebSocketManager {
         return this._config?.userId;
     }
 
-    public initIframeBridge() {
+    public initIframeBridge(): void {
         if (window.parent !== window) {
-            console.log('[WebSocketManager] Init Iframe Bridge Mode');
+            console.log('[WebSocketManager] Init iframe bridge mode');
             window.addEventListener('message', this._onPostMessageReceived.bind(this));
             window.parent.postMessage({ type: 'COCOS_READY' }, '*');
         }
     }
 
-    private _onPostMessageReceived(event: MessageEvent) {
-        const data = event.data;
-        if (!data || data.type !== 'SERVER_INBOUND') return;
-        
-        console.log('[Cocos] 收到前端透传的服务端指令:', data.action);
-        
-        // Auto-extract userId if frontend passes it in S_ROOM_STATE
-        if (data.action === 'S_ROOM_STATE' && data.payload && data.payload.myUserId !== undefined) {
-            this._iframeUserId = data.payload.myUserId;
+    private _onPostMessageReceived(event: MessageEvent): void {
+        const message = event.data;
+        if (!message) return;
+
+        const action = message.action || (message.type === 'SERVER_INBOUND' ? message.action : undefined);
+        const payload = message.payload || {};
+        if (!action) return;
+
+        if (action === 'S_ROOM_STATE' && payload.myUserId !== undefined) {
+            this._iframeUserId = payload.myUserId;
         }
 
-        const list = this._callbacks.get(data.action);
-        if (list) {
-            for (const item of list) {
-                if (item.target) {
-                    item.callback.call(item.target, data.payload);
-                } else {
-                    item.callback(data.payload);
-                }
-            }
-        }
+        this._dispatch(action, this._normalizeInboundPayload(action, payload));
     }
 
     public connect(config: IGameConfig): void {
         this._config = config;
-        
+
         if (window.parent !== window) {
-            console.log('[WebSocketManager] 处于内嵌环境，拦截 connect 调用，使用 postMessage 桥接。');
-            return; // 桥接模式下不需要建立真实的 WebSocket 连接
+            console.log('[WebSocketManager] Running inside iframe, using postMessage bridge');
+            return;
         }
 
         const url = 'ws://' + config.host + ':' + config.port + '/ws/game?userId=' + config.userId;
@@ -98,7 +88,7 @@ export class WebSocketManager {
     }
 
     public disconnect(): void {
-        if (window.parent !== window) return; // iframe 环境不处理真实的 disconnect
+        if (window.parent !== window) return;
         this._stopPing();
         if (this._ws) {
             this._ws.close();
@@ -109,11 +99,12 @@ export class WebSocketManager {
 
     public send(type: string, data?: any): void {
         if (window.parent !== window) {
-            // 内嵌模式：通过 postMessage 委托外层前端发送
             window.parent.postMessage({
-                type: 'COCOS_OUTBOUND',
-                action: type,
-                payload: data
+                type: 'COCOS_SEND_WS',
+                payload: {
+                    action: type,
+                    data: data || {}
+                }
             }, '*');
             return;
         }
@@ -146,15 +137,15 @@ export class WebSocketManager {
 
     public off(type: string, callback: WsCallback, target?: any): void {
         const list = this._callbacks.get(type);
-        if (list) {
-            const index = list.findIndex(item => item.callback === callback && item.target === target);
-            if (index > -1) {
-                list.splice(index, 1);
-            }
+        if (!list) return;
+
+        const index = list.findIndex(item => item.callback === callback && item.target === target);
+        if (index > -1) {
+            list.splice(index, 1);
         }
     }
 
-    private _onOpen(event: Event): void {
+    private _onOpen(_event: Event): void {
         console.log('[WebSocket] Connected successfully.');
         this._isConnected = true;
         this._startPing();
@@ -168,20 +159,43 @@ export class WebSocketManager {
         try {
             const msg: IWsMessage = JSON.parse(event.data);
             console.log('[WebSocket] RECV <- ' + event.data);
-
-            const list = this._callbacks.get(msg.type);
-            if (list) {
-                for (const item of list) {
-                    if (item.target) {
-                        item.callback.call(item.target, msg.data);
-                    } else {
-                        item.callback(msg.data);
-                    }
-                }
-            }
+            this._dispatch(msg.type, this._normalizeInboundPayload(msg.type, msg.data));
         } catch (e) {
             console.error('[WebSocket] Callback execution or parsing error:', e);
         }
+    }
+
+    private _dispatch(type: string, data: any): void {
+        const list = this._callbacks.get(type);
+        if (!list) return;
+
+        for (const item of list) {
+            if (item.target) {
+                item.callback.call(item.target, data);
+            } else {
+                item.callback(data);
+            }
+        }
+    }
+
+    private _normalizeInboundPayload(type: string, payload: any): any {
+        if (!payload || typeof payload !== 'object') return payload;
+
+        const normalized: any = { ...payload };
+        if (type === 'S_DRAW') {
+            if (typeof normalized.tileId !== 'number' && normalized.tile && typeof normalized.tile.tileId === 'number') {
+                normalized.tileId = normalized.tile.tileId;
+            }
+            if (typeof normalized.wallCount !== 'number' && typeof normalized.remaining === 'number') {
+                normalized.wallCount = normalized.remaining;
+            }
+        }
+
+        if (type === 'S_ACTION_OPTIONS' && !Array.isArray(normalized.options) && Array.isArray(normalized.actions)) {
+            normalized.options = normalized.actions;
+        }
+
+        return normalized;
     }
 
     private _onError(event: Event): void {
