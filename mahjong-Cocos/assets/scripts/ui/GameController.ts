@@ -332,6 +332,12 @@ export class GameController extends Component {
     private _updateWallCount(count?: number): void {
         if (count !== undefined && this.labelWallCount) {
             this.labelWallCount.string = `剩余: ${count}张`;
+            
+            // 将剩余牌数 UI 提升到最顶层显示，防止被手牌或其他特效遮挡
+            this.labelWallCount.node.setSiblingIndex(999);
+            if (this.labelWallCount.node.parent) {
+                this.labelWallCount.node.parent.setSiblingIndex(999);
+            }
         }
     }
 }

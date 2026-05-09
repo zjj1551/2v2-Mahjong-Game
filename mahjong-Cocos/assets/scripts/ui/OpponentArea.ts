@@ -119,6 +119,13 @@ export class OpponentArea extends Component {
             const node = instantiate(this.backTilePrefab);
             node.parent = this.handContainer;
             node.setScale(0.7, 0.7, 1);
+            
+            // 为了符合 2.5D 牌桌摄像机视角，给左右两家的牌增加轻微的透视倾斜角
+            if (this.node.name.includes('Left')) {
+                node.angle = 15; 
+            } else if (this.node.name.includes('Right')) {
+                node.angle = -15;
+            }
         }
     }
 
@@ -129,6 +136,13 @@ export class OpponentArea extends Component {
             node.parent = this.meldContainer;
             node.setScale(0.65, 0.65, 1);
             node.getComponent(MahjongTile)?.init(id);
+            
+            // 同样对左右两家的副露牌做轻微的透视倾斜角
+            if (this.node.name.includes('Left')) {
+                node.angle = 15; 
+            } else if (this.node.name.includes('Right')) {
+                node.angle = -15;
+            }
         }
     }
 
