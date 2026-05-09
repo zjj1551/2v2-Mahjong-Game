@@ -43,12 +43,16 @@ export class OpponentArea extends Component {
     private _seatIndex: number = -1;
     private _handCount: number = 0;
     private _originalNickname: string = "";
+    private _viewPosition: number = -1; // 0=Right, 1=Top, 2=Left
 
     /** 初始化对手信息 */
-    public init(seatIndex: number, nickname: string, handCount: number): void {
+    public init(seatIndex: number, nickname: string, handCount: number, viewPosition?: number): void {
         this._seatIndex = seatIndex;
         this._handCount = handCount;
         this._originalNickname = nickname;
+        if (viewPosition !== undefined) {
+            this._viewPosition = viewPosition;
+        }
         if (this.labelNickname) this.labelNickname.string = nickname;
         this._refreshHandDisplay();
         this.discardRiver?.clear();

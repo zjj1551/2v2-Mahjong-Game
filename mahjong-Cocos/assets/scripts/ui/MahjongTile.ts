@@ -1,5 +1,6 @@
-import { _decorator, Component, Sprite, SpriteFrame, resources, error } from 'cc';
+import { _decorator, Component, Sprite, SpriteFrame, resources } from 'cc';
 import { TILE_MAP } from '../core/TileConstants';
+
 const { ccclass, property } = _decorator;
 
 @ccclass('MahjongTile')
@@ -22,10 +23,10 @@ export class MahjongTile extends Component {
         const spriteName = TILE_MAP[this._tileId];
         if (!spriteName) return;
 
-        const path = `textures/mj/${spriteName}/spriteFrame`;
+        const path = 'textures/mj/' + spriteName + '/spriteFrame';
         resources.load(path, SpriteFrame, (err, sf) => {
             if (err) return;
-            if (this.tileIcon && this.node.isValid) {
+            if (this.tileIcon && (this as any).node && (this as any).node.isValid) {
                 this.tileIcon.spriteFrame = sf;
             }
         });
