@@ -31,6 +31,26 @@ class WinCheckerTest {
         return player;
     }
 
+    @Test
+    @DisplayName("自摸场景下 winTile 已在手牌中，应使用不补牌判定")
+    void checkWin_selfDrawTileAlreadyInHand_shouldUseNoAppendMode() {
+        // 14张完整和牌：123万 456万 789万 123筒 + 44筒
+        Player player = createPlayer(0, 2,
+                0, 1, 2,
+                3, 4, 5,
+                6, 7, 8,
+                9, 10, 11,
+                12, 12);
+
+        Tile drawnWinTile = Tile.fromId(12, 0);
+
+        WinChecker.WinResult selfDrawResult = WinChecker.checkWin(player, drawnWinTile, false);
+        assertNotNull(selfDrawResult, "自摸时应可胡牌");
+
+        WinChecker.WinResult appendModeResult = WinChecker.checkWin(player, drawnWinTile, true);
+        assertNull(appendModeResult, "若错误地重复补入胡牌，应判定失败");
+    }
+
     // ─── 普通胡牌测试 ────────────────────────────────────────
 
     @Nested
@@ -303,6 +323,23 @@ class WinCheckerTest {
 
             int shanten = WinChecker.calcShanten(counts, 0);
             assertEquals(0, shanten, "听牌向听数应为0");
+        }
+
+        @Test
+        @DisplayName("14张出牌回合应能给出听牌提示")
+        void getTingTiles_discardTurn_shouldReturnWaitingTiles() {
+            // 123万 456万 789万 123筒 + 45筒（14张）
+            // 打4筒听5筒，打5筒听4筒。
+            Player player = createPlayer(0, 2,
+                    0, 1, 2,
+                    3, 4, 5,
+                    6, 7, 8,
+                    9, 10, 11,
+                    12, 13);
+
+            List<Integer> tingTiles = WinChecker.getTingTiles(player);
+            assertTrue(tingTiles.contains(12), "应提示可听4筒");
+            assertTrue(tingTiles.contains(13), "应提示可听5筒");
         }
     }
 }

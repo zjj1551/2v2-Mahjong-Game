@@ -243,12 +243,37 @@ class LobbyController {
                 }
                 break;
 
+            case 'S_GAME_OVER':
+                if (window.gameConsole && gameMessageTypes.has(type)) {
+                    window.gameConsole.handleServerMessage(msg);
+                }
+                if (window.room) window.room.forwardToCocos(msg);
+                this.syncCurrentUserScore();
+                break;
+
             default:
                 if (window.gameConsole && gameMessageTypes.has(type)) {
                     window.gameConsole.handleServerMessage(msg);
                 }
                 if (window.room) window.room.forwardToCocos(msg);
                 break;
+        }
+    }
+
+    async syncCurrentUserScore() {
+        const userId = app.state.user?.userId;
+        if (!userId) return;
+
+        try {
+            const userInfo = await api.getUserInfo(userId);
+            const latestScore = userInfo.totalScore || 0;
+            document.getElementById('lbl-score').innerText = latestScore;
+            document.getElementById('lbl-score-top').innerText = latestScore;
+            this.updateUserRankTitle(latestScore);
+            app.state.user = { ...app.state.user, ...userInfo };
+            localStorage.setItem('mahjong_user', JSON.stringify(app.state.user));
+        } catch (error) {
+            console.warn('同步最新雀分失败', error);
         }
     }
 

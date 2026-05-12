@@ -17,3 +17,11 @@ Thumbs.db
 
 # External reference project (do not upload)
 mahjong-GitHub/
+
+# Ignore full Cocos project folders and builds
+mahjong-Cocos/
+3DMahjong/
+mahjong-frontend/cocos-build/
+
+# Ignore any folder or file with 'cocos' in name (catch-alls for build dirs)
+**/*cocos*/

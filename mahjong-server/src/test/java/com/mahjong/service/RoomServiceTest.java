@@ -2,6 +2,7 @@ package com.mahjong.service;
 
 import com.mahjong.model.Player;
 import com.mahjong.model.Room;
+import com.mahjong.redis.InMemoryRoomStateStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoomServiceTest {
 
-    private final RoomService roomService = new RoomService();
+    private final RoomService roomService = new RoomService(new InMemoryRoomStateStore());
 
     @Test
     @DisplayName("创建房间后可按 roomId 查询")

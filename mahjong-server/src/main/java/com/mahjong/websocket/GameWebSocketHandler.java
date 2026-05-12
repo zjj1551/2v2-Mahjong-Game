@@ -121,6 +121,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler implements GameSe
                 seat.put("online", p.isOnline());
                 seat.put("ready", p.isReady());
                 seat.put("isBot", p.isBot());
+                seat.put("isHu", p.isHu());
             } else {
                 seat.put("occupied", false);
             }

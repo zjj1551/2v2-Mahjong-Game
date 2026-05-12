@@ -251,7 +251,7 @@ public class GameEngine {
         result.drawnTile = drawn;
 
         // 自摸胡判定
-        WinChecker.WinResult winResult = winChecker.checkWin(player, drawn);
+        WinChecker.WinResult winResult = winChecker.checkWin(player, drawn, false);
         if (winResult != null) {
             result.canZiMo = true;
             result.winResult = winResult;
@@ -452,7 +452,7 @@ public class GameEngine {
         validatePlaying();
         Player player = room.getPlayer(seatIndex);
 
-        WinChecker.WinResult winResult = winChecker.checkWin(player, winTile);
+        WinChecker.WinResult winResult = winChecker.checkWin(player, winTile, !isSelfDraw);
         if (winResult == null) {
             throw new IllegalStateException("不满足胡牌条件");
         }

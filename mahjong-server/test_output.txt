@@ -1,0 +1,232 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m---------------------< [0;36mcom.mahjong:mahjong-server[0;1m >---------------------[m
+[[1;34mINFO[m] [1mBuilding mahjong-server 1.0.0[m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-resources-plugin:3.3.1:resources[m [1m(default-resources)[m @ [36mmahjong-server[0;1m ---[m
+[[1;34mINFO[m] Copying 1 resource from src/main/resources to target/classes
+[[1;34mINFO[m] Copying 1 resource from src/main/resources to target/classes
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mmaven-compiler-plugin:3.13.0:compile[m [1m(default-compile)[m @ [36mmahjong-server[0;1m ---[m
+[[1;34mINFO[m] Recompiling the module because of [1mchanged source code[m.
+[[1;34mINFO[m] Compiling 38 source files with javac [debug parameters release 17] to target/classes
+[[1;34mINFO[m] -------------------------------------------------------------
+[[1;31mERROR[m] COMPILATION ERROR : 
+[[1;34mINFO[m] -------------------------------------------------------------
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[54,5] illegal start of expression
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[64,5] illegal start of expression
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[97,9] illegal start of type
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[103,20] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[105,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[107,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[107,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[107,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[110,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[113,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[114,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[116,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[121,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[122,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[123,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[124,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[125,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[127,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[136,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[139,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[139,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[139,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[142,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[144,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[145,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[147,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[150,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[160,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[162,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[166,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[166,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[166,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[169,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[170,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[175,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[177,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[179,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[180,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[182,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[186,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[187,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[188,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[191,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[192,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[193,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[195,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[196,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[197,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[198,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[200,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[201,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[202,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[206,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[213,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[213,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[213,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[216,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[219,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[221,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[223,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[228,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[230,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[235,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[237,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[243,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[245,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[246,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[247,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[249,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[252,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[254,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[255,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[257,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[263,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[264,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[266,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[272,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[273,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[275,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[280,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[281,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[283,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[285,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[290,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[295,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[298,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[303,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[305,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[311,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[314,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[316,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[317,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[318,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[322,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[323,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[325,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[326,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[328,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[329,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[333,9] class, interface, enum, or record expected
+[[1;34mINFO[m] 100 errors 
+[[1;34mINFO[m] -------------------------------------------------------------
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;31mBUILD FAILURE[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  1.952 s
+[[1;34mINFO[m] Finished at: 2026-05-11T19:15:15+08:00
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;31mERROR[m] Failed to execute goal [32morg.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile[m [1m(default-compile)[m on project [36mmahjong-server[m: [1;31mCompilation failure[m: Compilation failure: 
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[54,5] illegal start of expression
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[64,5] illegal start of expression
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[97,9] illegal start of type
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[103,20] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[105,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[107,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[107,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[107,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[110,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[113,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[114,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[116,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[121,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[122,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[123,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[124,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[125,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[127,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[136,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[139,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[139,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[139,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[142,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[144,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[145,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[147,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[150,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[160,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[162,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[166,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[166,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[166,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[169,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[170,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[175,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[177,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[179,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[180,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[182,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[186,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[187,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[188,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[191,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[192,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[193,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[195,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[196,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[197,21] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[198,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[200,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[201,17] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[202,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[206,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[213,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[213,25] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[213,46] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[216,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[219,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[221,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[223,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[228,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[230,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[235,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[237,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[243,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[245,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[246,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[247,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[249,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[252,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[254,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[255,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[257,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[263,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[264,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[266,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[272,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[273,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[275,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[280,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[281,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[283,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[285,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[290,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[295,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[298,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[303,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[305,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[311,19] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[314,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[316,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[317,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[318,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[322,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[323,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[325,13] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[326,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[328,9] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[329,5] class, interface, enum, or record expected
+[[1;31mERROR[m] /root/workspace/Mahjong/mahjong-server/src/main/java/com/mahjong/engine/WinChecker.java:[333,9] class, interface, enum, or record expected
+[[1;31mERROR[m] -> [1m[Help 1][m
+[[1;31mERROR[m] 
+[[1;31mERROR[m] To see the full stack trace of the errors, re-run Maven with the [1m-e[m switch.
+[[1;31mERROR[m] Re-run Maven using the [1m-X[m switch to enable full debug logging.
+[[1;31mERROR[m] 
+[[1;31mERROR[m] For more information about the errors and possible solutions, please read the following articles:
+[[1;31mERROR[m] [1m[Help 1][m http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

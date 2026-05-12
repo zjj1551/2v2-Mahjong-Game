@@ -13,6 +13,10 @@ class RoomController {
         this.cocosReady = false;
         this.latestRoomState = null;
         this.latestGameStartData = null;
+        this.latestHuSeatIndex = null;
+        this.cocosResizeObserver = null;
+        this.cocosResizeRaf = 0;
+        this.handleWindowResize = () => this.scheduleCocosResize();
         this.cocosBuildPath = window.COCOS_BUILD_PATH || '/cocos-build/web-desktop/index.html';
 
         window.addEventListener('message', (event) => this.onCocosMessage(event));
@@ -65,6 +69,8 @@ class RoomController {
         this.latestGameStartData = gameStartData || null;
         this.mountCocos(gameStartData);
         app.switchView('game');
+        this.renderGamePlayerStatusBar();
+        this.scheduleCocosResize();
     }
 
     // 离开房间
@@ -105,6 +111,7 @@ class RoomController {
         this.roomStatus = 'WAITING';
         this.latestRoomState = null;
         this.latestGameStartData = null;
+        this.latestHuSeatIndex = null;
         this.unmountCocos();
         
         // 显式隐藏房间头部的管理按钮区
@@ -155,6 +162,7 @@ class RoomController {
         }
 
         this.renderSeats();
+        this.renderGamePlayerStatusBar();
         this.updateActionButtons(data);
     }
 
@@ -168,11 +176,14 @@ class RoomController {
         iframe.className = 'cocos-iframe';
         iframe.src = this.cocosBuildPath;
         iframe.allowTransparency = 'true';
+        iframe.setAttribute('scrolling', 'no');
+        iframe.setAttribute('allow', 'fullscreen');
         iframe.setAttribute('loading', 'eager');
         iframe.setAttribute('referrerpolicy', 'no-referrer');
 
         iframe.addEventListener('load', () => {
             this.cocosReady = false;
+            this.syncCocosFrameSize();
             if (gameStartData) {
                 this.sendToCocos('S_GAME_START', gameStartData);
             }
@@ -183,14 +194,113 @@ class RoomController {
 
         stageEl.appendChild(iframe);
         this.cocosFrame = iframe;
+        this.attachCocosResizeObserver(stageEl);
+        window.addEventListener('resize', this.handleWindowResize);
+        this.renderGamePlayerStatusBar();
     }
 
     unmountCocos() {
+        window.removeEventListener('resize', this.handleWindowResize);
+        if (this.cocosResizeObserver) {
+            this.cocosResizeObserver.disconnect();
+            this.cocosResizeObserver = null;
+        }
+        if (this.cocosResizeRaf) {
+            cancelAnimationFrame(this.cocosResizeRaf);
+            this.cocosResizeRaf = 0;
+        }
         if (this.cocosFrame && this.cocosFrame.parentElement) {
             this.cocosFrame.parentElement.innerHTML = '';
         }
         this.cocosFrame = null;
         this.cocosReady = false;
+    }
+
+    attachCocosResizeObserver(stageEl) {
+        if (this.cocosResizeObserver) {
+            this.cocosResizeObserver.disconnect();
+            this.cocosResizeObserver = null;
+        }
+
+        if (typeof ResizeObserver === 'undefined') {
+            return;
+        }
+
+        this.cocosResizeObserver = new ResizeObserver(() => this.scheduleCocosResize());
+        this.cocosResizeObserver.observe(stageEl);
+    }
+
+    scheduleCocosResize() {
+        if (this.cocosResizeRaf) {
+            cancelAnimationFrame(this.cocosResizeRaf);
+        }
+        this.cocosResizeRaf = requestAnimationFrame(() => {
+            this.cocosResizeRaf = 0;
+            this.syncCocosFrameSize();
+        });
+    }
+
+    syncCocosFrameSize() {
+        if (!this.cocosFrame || !this.cocosFrame.contentWindow || !this.cocosFrame.contentDocument) {
+            return;
+        }
+
+        const stageEl = document.getElementById('cocos-game-stage');
+        if (!stageEl) return;
+
+        const width = stageEl.clientWidth;
+        const height = stageEl.clientHeight;
+        if (!width || !height) return;
+
+        const doc = this.cocosFrame.contentDocument;
+        const win = this.cocosFrame.contentWindow;
+        let styleEl = doc.getElementById('mahjong-cocos-responsive-style');
+        if (!styleEl) {
+            styleEl = doc.createElement('style');
+            styleEl.id = 'mahjong-cocos-responsive-style';
+            doc.head.appendChild(styleEl);
+        }
+
+        styleEl.textContent = `
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                overflow: hidden !important;
+                background: #000 !important;
+            }
+
+            body {
+                display: block !important;
+            }
+
+            #GameDiv,
+            #Cocos3dGameContainer,
+            #GameCanvas {
+                width: 100% !important;
+                height: 100% !important;
+                max-width: none !important;
+                max-height: none !important;
+            }
+
+            #GameDiv {
+                margin: 0 !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
+
+            .header,
+            .footer {
+                display: none !important;
+            }
+        `;
+
+        try {
+            win.dispatchEvent(new win.Event('resize'));
+        } catch (e) {
+            // 忽略跨浏览器兼容性差异，样式注入已足够让 Cocos 重新适配。
+        }
     }
 
     onCocosMessage(event) {
@@ -218,8 +328,9 @@ class RoomController {
     }
 
     forwardToCocos(msg) {
-        if (!this.cocosFrame) return;
         if (!msg || !msg.type) return;
+        this.applyHtmlLiveStatusMessage(msg);
+        if (!this.cocosFrame) return;
         const allowed = new Set([
             'S_ROOM_STATE',
             'S_GAME_START',
@@ -240,6 +351,79 @@ class RoomController {
 
         if (!allowed.has(msg.type)) return;
         this.sendToCocos(msg.type, msg.data || {});
+    }
+
+    applyHtmlLiveStatusMessage(msg) {
+        if (!msg || !msg.type) return;
+
+        if (msg.type === 'S_ROOM_STATE') {
+            this.latestRoomState = msg.data || this.latestRoomState;
+            this.renderGamePlayerStatusBar();
+            return;
+        }
+
+        if (msg.type === 'S_HU') {
+            const seatIndex = Number(msg.data?.seatIndex);
+            if (!Number.isNaN(seatIndex) && seatIndex >= 0) {
+                this.latestHuSeatIndex = seatIndex;
+                this.markPlayerHu(seatIndex);
+                this.renderGamePlayerStatusBar();
+            }
+        }
+    }
+
+    markPlayerHu(seatIndex) {
+        if (!this.latestRoomState || !Array.isArray(this.latestRoomState.seats)) return;
+        const seat = this.latestRoomState.seats.find(s => s && s.seatIndex === seatIndex);
+        if (seat) {
+            seat.isHu = true;
+        }
+    }
+
+    renderGamePlayerStatusBar() {
+        const bar = document.getElementById('game-player-status-bar');
+        if (!bar) return;
+
+        const seats = Array.isArray(this.latestRoomState?.seats)
+            ? [...this.latestRoomState.seats].filter(Boolean).sort((a, b) => a.seatIndex - b.seatIndex)
+            : [];
+
+        if (!seats.length) {
+            bar.innerHTML = `
+                <div class="player-status-note" style="grid-column:1/-1;">等待房间状态同步后显示玩家在线、定缺和胡牌状态。</div>
+            `;
+            return;
+        }
+
+        const missSuitNames = ['万', '筒', '条'];
+        const myUserId = app.state.user?.userId;
+        bar.innerHTML = seats.map(seat => {
+            const isSelf = Number(seat.userId) === Number(myUserId);
+            const isOnline = seat.online !== false;
+            const isHu = !!seat.isHu;
+            const missSuitName = Number.isInteger(seat.missSuit) && seat.missSuit >= 0
+                ? missSuitNames[seat.missSuit] || String(seat.missSuit)
+                : '';
+            const badges = [];
+            badges.push(`<span class="player-state-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? '在线' : '离线'}</span>`);
+            if (seat.ready) badges.push('<span class="player-state-badge ready">准备</span>');
+            if (missSuitName) badges.push(`<span class="player-state-badge miss">缺${missSuitName}</span>`);
+            if (isHu) badges.push('<span class="player-state-badge hu">胡</span>');
+            if (seat.isBot) badges.push('<span class="player-state-badge offline">AI</span>');
+
+            return `
+                <div class="player-status-card ${isSelf ? 'is-self' : ''} ${!isOnline ? 'is-offline' : ''} ${isHu ? 'is-hu' : ''}">
+                    <div class="player-status-head">
+                        <div class="player-status-name">${seat.nickname || ('玩家' + seat.seatIndex)}</div>
+                        <div class="player-status-seat">座位 ${seat.seatIndex}</div>
+                    </div>
+                    <div class="player-status-badges">
+                        ${badges.join('')}
+                    </div>
+                    <div class="player-status-note">${isSelf ? '你当前所在座位' : '网页层状态同步，不影响 Cocos 内部渲染'}</div>
+                </div>
+            `;
+        }).join('');
     }
 
     sendToCocos(action, payload) {

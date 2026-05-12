@@ -142,17 +142,19 @@ class GameConsoleController {
         const players = Array.isArray(data?.players) ? data.players.slice() : [];
         players.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
 
-        const champion = players[0]?.nickname || '-';
-        summaryEl.innerHTML = `<span class="settlement-champion-icon">🏆</span> 本场冠军：<strong style="color:#ffe57a;">${champion}</strong>`;
+        const championTeam = players[0]?.team ?? '-';
+        summaryEl.innerHTML = `<span class="settlement-champion-icon">🏆</span> 冠军队伍：<strong style="color:#ffe57a;">${championTeam}</strong>（同队共享队伍总分）`;
 
         const rankClasses = ['rank-1', 'rank-2', 'rank-3', 'rank-other'];
         const rankLabels = ['🥇', '🥈', '🥉', '#4'];
 
         body.innerHTML = players.map((player, index) => {
             const score = Number(player.totalScore || 0);
+            const individualScore = Number(player.individualScore || 0);
             const isSelf = Number(player.userId) === Number(this.userId);
             const scoreClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
             const scoreText = score > 0 ? `+${score}` : `${score}`;
+            const individualText = individualScore > 0 ? `+${individualScore}` : `${individualScore}`;
             const avatarChar = (player.nickname || '?')[0].toUpperCase();
             const rankClass = rankClasses[index] || 'rank-other';
             const rankLabel = index < 3 ? rankLabels[index] : `#${index + 1}`;
@@ -166,12 +168,16 @@ class GameConsoleController {
                             <div class="player-name-block">
                                 <span class="player-name-text">${player.nickname || '-'}</span>
                                 ${isSelf ? '<span class="player-self-tag">我</span>' : ''}
+                                <span class="player-self-tag">队伍 ${player.team ?? '-'}</span>
                                 ${index === 0 ? '<span class="player-self-tag" style="color:#ffe57a;border-color:rgba(255,229,122,0.4);">冠军</span>' : ''}
                             </div>
                         </div>
                     </td>
                     <td>${player.seatIndex ?? '-'}</td>
-                    <td><span class="score-cell ${scoreClass}">${scoreText}</span></td>
+                    <td>
+                        <span class="score-cell ${scoreClass}">${scoreText}</span>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">个人 ${individualText}</div>
+                    </td>
                 </tr>
             `;
         }).join('');

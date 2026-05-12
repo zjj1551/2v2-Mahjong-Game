@@ -66,6 +66,8 @@ public class GameService {
     private static final long BOT_ACTION_DELAY_MS = 650L;
     /** roomId -> 本局胡牌玩家座位（用于庄家轮转） */
     private final Map<String, Integer> lastWinnerSeatMap = new ConcurrentHashMap<>();
+    /** roomId -> 整场累计个人分（seat0~3） */
+    private final Map<String, int[]> matchSeatScores = new ConcurrentHashMap<>();
     @Autowired
     public GameService(RoomService roomService, UserService userService,
             GameRecordRepository gameRecordRepository, UserRepository userRepository,
@@ -118,6 +120,7 @@ public class GameService {
 
         GameEngine engine = new GameEngine(room);
         engines.put(roomId, engine);
+        matchSeatScores.put(roomId, new int[4]);
 
         // 庄家默认0号座位（首局），后续可按规则轮转
         int bankerSeat = (room.getCurrentRound() - 1) % 4;
@@ -489,7 +492,7 @@ public class GameService {
         }
         // 先获取胡牌结果（用于展示和记录）
         Player huPlayer = room.getPlayer(seatIndex);
-        WinChecker.WinResult winResult = WinChecker.checkWin(huPlayer, winTile);
+        WinChecker.WinResult winResult = WinChecker.checkWin(huPlayer, winTile, !isSelfDraw);
         int score = engine.hu(seatIndex, winTile, isSelfDraw, isGangShang, isQiangGang, fromSeat);
         pendingActions.remove(roomId);
 
@@ -505,6 +508,7 @@ public class GameService {
         if (messageSender != null) {
             Map<String, Object> huData = new HashMap<>();
             huData.put("seatIndex", seatIndex);
+            huData.put("isHu", true);
             huData.put("winTile", tileToMap(winTile));
             huData.put("isSelfDraw", isSelfDraw);
             huData.put("score", score);
@@ -889,6 +893,15 @@ public class GameService {
         cancelCountdown(roomId);
         GameEngine engine = getEngine(roomId);
         Room room = engine.getRoom();
+        int[] seatTotals = matchSeatScores.computeIfAbsent(roomId, key -> new int[4]);
+
+        // 先累计本局个人分，避免 startNewRound 重置后丢失历史分。
+        for (int i = 0; i < 4; i++) {
+            Player p = room.getPlayer(i);
+            if (p != null) {
+                seatTotals[i] += p.getScore();
+            }
+        }
 
         replayStore.append(roomId, "ROUND_END", room.getCurrentRound(), Map.of(
             "round", room.getCurrentRound()));
@@ -961,13 +974,24 @@ public class GameService {
         room.setStatus(Room.RoomStatus.FINISHED);
         roomService.syncRoomSnapshot(roomId);
 
+        int[] seatTotals = matchSeatScores.getOrDefault(roomId, new int[4]);
+        int[] teamTotals = new int[2];
+        for (int seat = 0; seat < 4; seat++) {
+            Player p = room.getPlayer(seat);
+            if (p != null) {
+                teamTotals[p.getTeam()] += seatTotals[seat];
+            }
+        }
+
         // 更新用户战绩
         for (int i = 0; i < 4; i++) {
             Player p = room.getPlayer(i);
             if (p == null)
                 continue;
+            int teamScore = teamTotals[p.getTeam()];
             userService.findById(p.getUserId()).ifPresent(user -> {
-                user.addTotalScore(p.getScore());
+                // 双人模式按队伍结算：同队两人同步增加队伍总分。
+                user.addTotalScore(teamScore);
                 user.incrementGameCount();
                 if (p.isHu()) {
                     user.incrementWinCount();
@@ -985,7 +1009,11 @@ public class GameService {
             ps.put("seatIndex", i);
             ps.put("userId", p.getUserId());
             ps.put("nickname", p.getNickname());
-            ps.put("totalScore", p.getScore());
+            ps.put("individualScore", seatTotals[i]);
+            ps.put("team", p.getTeam());
+            ps.put("teamScore", teamTotals[p.getTeam()]);
+            // 兼容前端原字段：整场展示默认按队伍总分排序/展示
+            ps.put("totalScore", teamTotals[p.getTeam()]);
             finalScores.add(ps);
         }
 
@@ -1003,6 +1031,7 @@ public class GameService {
         engines.remove(roomId);
         pendingActions.remove(roomId);
         lastWinnerSeatMap.remove(roomId);
+        matchSeatScores.remove(roomId);
 
         log.info("比赛结束: roomId=" + roomId);
     }

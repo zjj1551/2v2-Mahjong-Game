@@ -782,7 +782,7 @@
 
 .game-live-content {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0, 2.8fr) minmax(320px, 1fr);
     gap: 20px;
     height: calc(100vh - 80px);
     padding: 20px;
@@ -795,11 +795,120 @@
     min-width: 0;
 }
 
+.game-player-status-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 8px 0 14px;
+}
+
+.player-status-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.18));
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.03);
+}
+
+.player-status-card.is-self {
+    border-color: rgba(212, 175, 55, 0.3);
+    box-shadow: inset 0 0 22px rgba(212, 175, 55, 0.08);
+}
+
+.player-status-card.is-offline {
+    opacity: 0.7;
+}
+
+.player-status-card.is-hu {
+    border-color: rgba(76, 222, 128, 0.28);
+    box-shadow: inset 0 0 24px rgba(76, 222, 128, 0.08);
+}
+
+.player-status-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+}
+
+.player-status-name {
+    font-weight: 700;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-status-seat {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex: none;
+}
+
+.player-status-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.player-state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid transparent;
+    line-height: 1.4;
+}
+
+.player-state-badge.online {
+    color: #4cde80;
+    border-color: rgba(76, 222, 128, 0.25);
+    background: rgba(76, 222, 128, 0.08);
+}
+
+.player-state-badge.offline {
+    color: var(--text-muted);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.player-state-badge.hu {
+    color: #f9d56e;
+    border-color: rgba(249, 213, 110, 0.3);
+    background: rgba(249, 213, 110, 0.1);
+}
+
+.player-state-badge.miss {
+    color: var(--color-primary);
+    border-color: rgba(212, 175, 55, 0.28);
+    background: rgba(212, 175, 55, 0.08);
+}
+
+.player-state-badge.ready {
+    color: #89f7be;
+    border-color: rgba(137, 247, 190, 0.25);
+    background: rgba(137, 247, 190, 0.08);
+}
+
+.player-status-note {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
 .cocos-stage-shell {
     flex: 1;
     width: 100%;
-    aspect-ratio: 16 / 9;
-    min-height: 520px;
+    aspect-ratio: 4 / 3;
+    min-height: 680px;
+    max-height: calc(100vh - 140px);
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.45));
@@ -840,6 +949,35 @@
 .cocos-stage-subtitle {
     color: var(--text-muted);
     font-size: 0.92rem;
+}
+
+@media (max-width: 1440px) {
+    .game-live-content {
+        grid-template-columns: minmax(0, 2.6fr) minmax(300px, 1fr);
+    }
+    .game-player-status-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cocos-stage-shell {
+        min-height: 620px;
+    }
+}
+
+@media (max-width: 1280px) {
+    .game-live-content {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: calc(100vh - 80px);
+    }
+    .game-player-status-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cocos-stage-shell {
+        min-height: 58vh;
+        max-height: 70vh;
+    }
 }
 
 .game-chat-panel {
@@ -1665,8 +1803,19 @@
         gap: 12px;
     }
 
+    .game-player-status-bar {
+        grid-template-columns: 1fr;
+        margin: 0 0 8px;
+    }
+
+    .game-player-status-bar {
+        grid-template-columns: 1fr;
+        margin: 0 0 8px;
+    }
+
     .cocos-stage-shell {
-        min-height: 340px;
+        min-height: 56vh;
+        max-height: 64vh;
     }
 
     .table-center .btn-primary {
