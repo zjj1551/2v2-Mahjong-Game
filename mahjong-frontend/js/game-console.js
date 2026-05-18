@@ -15,6 +15,8 @@ class GameConsoleController {
         this.pendingChiOptions = [];
         this.phase = 'WAITING';
         this.selectedMissSuit = null;
+        this.currentTingTiles = [];
+        this.phaseTip = '';
     }
 
     open(gameStartData) {
@@ -29,6 +31,8 @@ class GameConsoleController {
         this.pendingChiOptions = [];
         this.selectedTileId = null;
         this.selectedMissSuit = null;
+        this.currentTingTiles = [];
+        this.phaseTip = '';
         this.setHandTiles(gameStartData?.handTiles || []);
         this.closeRoundSettlement();
         this.closeGameSettlement();
@@ -107,7 +111,7 @@ class GameConsoleController {
             const isSelf = Number(player.userId) === Number(this.userId);
             const scoreClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
             const scoreText = score > 0 ? `+${score}` : `${score}`;
-            const avatarChar = (player.nickname || '?')[0].toUpperCase();
+            const avatarChar = player.avatarChar || (player.nickname || '?')[0].toUpperCase();
             const rankClass = rankClasses[index] || 'rank-other';
             const rankLabel = index < 3 ? rankLabels[index] : `#${index + 1}`;
 
@@ -155,7 +159,7 @@ class GameConsoleController {
             const scoreClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
             const scoreText = score > 0 ? `+${score}` : `${score}`;
             const individualText = individualScore > 0 ? `+${individualScore}` : `${individualScore}`;
-            const avatarChar = (player.nickname || '?')[0].toUpperCase();
+            const avatarChar = player.avatarChar || (player.nickname || '?')[0].toUpperCase();
             const rankClass = rankClasses[index] || 'rank-other';
             const rankLabel = index < 3 ? rankLabels[index] : `#${index + 1}`;
 
@@ -200,6 +204,7 @@ class GameConsoleController {
 
     setPhase(phase, tip) {
         this.phase = phase;
+        this.phaseTip = tip || '';
         const phaseText = {
             WAITING: '等待开局',
             STARTED: '已开局',
@@ -211,7 +216,24 @@ class GameConsoleController {
         }[phase] || phase;
 
         document.getElementById('game-console-phase').innerText = phaseText;
-        document.getElementById('game-console-tip').innerText = tip || '开局后可直接点击按钮操作。';
+        document.getElementById('game-console-tip').innerText = `${this.phaseTip}${this.buildTingSuffix()}` || '开局后可直接点击按钮操作。';
+    }
+
+    updateTingTiles(tingTiles) {
+        this.currentTingTiles = Array.isArray(tingTiles)
+            ? [...new Set(tingTiles.map(tileId => Number(tileId)).filter(tileId => Number.isInteger(tileId) && tileId >= 0))]
+            : [];
+        const tipEl = document.getElementById('game-console-tip');
+        if (tipEl) {
+            tipEl.innerText = `${this.phaseTip}${this.buildTingSuffix()}` || '开局后可直接点击按钮操作。';
+        }
+    }
+
+    buildTingSuffix() {
+        if (!Array.isArray(this.currentTingTiles) || !this.currentTingTiles.length) {
+            return '';
+        }
+        return `；听牌: ${this.currentTingTiles.map(tileId => this.tileLabel({ tileId })).join(' ')}`;
     }
 
     setSelectedTile(tileId) {
@@ -579,6 +601,8 @@ class GameConsoleController {
                 this.pendingChiOptions = [];
                 this.selectedTileId = null;
                 this.selectedMissSuit = null;
+                this.currentTingTiles = [];
+                this.phaseTip = '';
                 this.setHandTiles(data.handTiles || []);
                 this.setPhase('STARTED', '新一局开始，等待定缺。');
                 this.append('system', `新一局开始，手牌: ${this.formatTileList(this.handTiles)}`);
@@ -624,10 +648,8 @@ class GameConsoleController {
                     }
                     this.pendingGangTileIds = Array.isArray(data.canAnGangIds) ? data.canAnGangIds : [];
                     this.pendingBuGangTileId = Number.isInteger(data.buGangTileId) ? data.buGangTileId : null;
-                    const tingText = Array.isArray(data.tingTiles) && data.tingTiles.length
-                        ? `；听牌: ${data.tingTiles.map(tileId => this.tileLabel({ tileId })).join(' ')}`
-                        : '';
-                    this.setPhase('YOUR_TURN', `轮到你出牌，剩余牌墙 ${data.remaining ?? '-'} 张${tingText}`);
+                    this.updateTingTiles(Array.isArray(data.tingTiles) ? data.tingTiles : []);
+                    this.setPhase('YOUR_TURN', `轮到你出牌，剩余牌墙 ${data.remaining ?? '-'} 张`);
                     this.append('system', `你摸到 ${this.tileLabel(data.tile)}，当前手牌: ${this.formatTileList(this.handTiles)}`);
                     this.render();
                 }
@@ -642,6 +664,9 @@ class GameConsoleController {
                     this.pendingBuGangTileId = null;
                     this.pendingChiOptions = [];
                     this.setPhase('STARTED', '已出牌，等待其他玩家响应。');
+                    if (Array.isArray(data.tingTiles)) {
+                        this.updateTingTiles(data.tingTiles);
+                    }
                 }
                 this.append('system', `${data.seatIndex}号位打出 ${this.tileLabel({ tileId: data.tileId, name: data.tileName })}`);
                 this.renderActions();
@@ -666,6 +691,9 @@ class GameConsoleController {
                     this.pendingBuGangTileId = null;
                     this.pendingChiOptions = [];
                     this.setPhase('YOUR_TURN', '吃牌成功，请继续出牌。');
+                    if (Array.isArray(data.tingTiles)) {
+                        this.updateTingTiles(data.tingTiles);
+                    }
                 }
                 this.append('system', `${data.seatIndex}号位吃了 ${this.tileLabel({ tileId: data.tileId })}`);
                 this.renderActions();
@@ -675,6 +703,9 @@ class GameConsoleController {
                 if (Number(data.seatIndex) === Number(this.seatIndex)) {
                     this.removeTileFromHand(data.tileId, 2);
                     this.setPhase('YOUR_TURN', '碰牌成功，请继续出牌。');
+                    if (Array.isArray(data.tingTiles)) {
+                        this.updateTingTiles(data.tingTiles);
+                    }
                 }
                 this.append('system', `${data.seatIndex}号位碰了 ${this.tileLabel({ tileId: data.tileId })}`);
                 this.renderActions();
@@ -690,6 +721,9 @@ class GameConsoleController {
                     this.pendingBuGangTileId = null;
                     this.pendingChiOptions = [];
                     this.setPhase('STARTED', '杠牌完成，等待补牌。');
+                    if (Array.isArray(data.tingTiles)) {
+                        this.updateTingTiles(data.tingTiles);
+                    }
                 }
                 this.append('system', `${data.seatIndex}号位${data.gangType || ''}杠了 ${this.tileLabel({ tileId: data.tileId })}`);
                 this.render();
@@ -700,6 +734,9 @@ class GameConsoleController {
                 this.pendingGangTileIds = [];
                 this.pendingBuGangTileId = null;
                 this.pendingChiOptions = [];
+                if (Array.isArray(data.tingTiles)) {
+                    this.updateTingTiles(data.tingTiles);
+                }
                 this.setPhase('ROUND_SETTLED', `${data.seatIndex}号位${data.isSelfDraw ? '自摸' : '胡牌'}，本次分数 ${data.score ?? 0}`);
                 this.append('system', `${data.seatIndex}号位${data.isSelfDraw ? '自摸' : '胡牌'}，牌型 ${data.winType || '胡牌'}，分数 ${data.score ?? 0}`);
                 this.renderActions();

@@ -19,11 +19,12 @@ class LobbyController {
         // --- 第一步：立即使用本地缓存渲染 UI (防止刷新后显示“加载中”) ---
         const u = app.state.user;
         const safeNickname = u.nickname || u.username || '玩家';
+        const safeAvatarChar = (u.avatarChar || safeNickname || '?').charAt(0).toUpperCase();
         
         document.getElementById('lbl-nickname').innerText = safeNickname;
         document.getElementById('lbl-nickname-top').innerText = safeNickname;
         document.getElementById('lbl-user-id').innerText = u.userId || '-';
-        document.getElementById('lbl-avatar-char').innerText = safeNickname.charAt(0).toUpperCase();
+        document.getElementById('lbl-avatar-char').innerText = safeAvatarChar;
         
         // 渲染本地缓存的分数（如果有）
         const cachedScore = u.totalScore || 0;
@@ -46,7 +47,10 @@ class LobbyController {
             // 更新 UI 到最新值
             document.getElementById('lbl-score').innerText = latestScore;
             document.getElementById('lbl-score-top').innerText = latestScore;
-            document.getElementById('lbl-nickname').innerText = userInfo.nickname;
+            const latestNickname = userInfo.nickname || safeNickname;
+            const latestAvatarChar = (userInfo.avatarChar || latestNickname || '?').charAt(0).toUpperCase();
+            document.getElementById('lbl-nickname').innerText = latestNickname;
+            document.getElementById('lbl-avatar-char').innerText = latestAvatarChar;
             this.updateUserRankTitle(latestScore);
 
             // 【关键修复】同步回本地缓存，确保下次刷新有最新数据

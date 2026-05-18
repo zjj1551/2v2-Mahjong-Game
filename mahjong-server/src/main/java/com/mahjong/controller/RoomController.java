@@ -142,6 +142,10 @@ public class RoomController {
                 seat.put("online", p.isOnline());
                 seat.put("ready", p.isReady());
                 seat.put("isBot", p.isBot());
+                seat.put("isHu", p.isHu());
+                seat.put("missSuit", p.getMissSuit());
+                seat.put("avatarChar", p.getAvatarChar());
+                seat.put("avatarColor", p.getAvatarColor());
             } else {
                 seat.put("occupied", false);
             }
@@ -151,7 +155,10 @@ public class RoomController {
         // 大厅中未就座的玩家
         List<Map<String, Object>> lobbyList = new java.util.ArrayList<>();
         room.getLobbyUsers().forEach((uid, nick) ->
-                lobbyList.add(Map.of("userId", uid, "nickname", nick)));
+            lobbyList.add(Map.of(
+                "userId", uid,
+                "nickname", nick,
+                "avatarChar", nick == null || nick.isBlank() ? "?" : nick.substring(0, 1).toUpperCase())));
 
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("success", true);

@@ -155,6 +155,11 @@ public class GameEngine {
         }
 
         Player player = room.getPlayer(seatIndex);
+        Tile discardTile = Tile.fromId(tileId, 0);
+        if (player != null && player.getMissSuit() >= 0 && player.hasMissSuitTile()
+                && discardTile.getType().getIndex() != player.getMissSuit()) {
+            throw new IllegalStateException("定缺后必须先打出缺门牌");
+        }
         Tile discarded = player.discardTile(tileId);
         state.recordDiscard(seatIndex, discarded);
         
@@ -262,7 +267,7 @@ public class GameEngine {
         // 暗杠判定（手牌中有4张相同的牌）
         int[] counts = player.toCountArray();
         for (int id = 0; id < 27; id++) {
-            if (counts[id] >= 4) {
+            if (WinChecker.canAnGang(player, id)) {
                 result.canAnGangIds.add(id);
             }
         }
@@ -290,6 +295,12 @@ public class GameEngine {
     public void peng(int seatIndex, int tileId, int fromSeat) {
         validatePlaying();
         Player player = room.getPlayer(seatIndex);
+        if (player != null && player.getMissSuit() >= 0) {
+            Tile tile = Tile.fromId(tileId, 0);
+            if (tile.getType().getIndex() == player.getMissSuit()) {
+                throw new IllegalStateException("定缺后不能碰自己的缺门牌");
+            }
+        }
 
         // 从手牌移出2张相同的牌
         List<Tile> removed = player.removeTiles(tileId, 2);
@@ -319,6 +330,13 @@ public class GameEngine {
         Player player = room.getPlayer(seatIndex);
         if (player == null || player.isHu()) {
             throw new IllegalStateException("玩家不存在或已胡牌");
+        }
+
+        if (player.getMissSuit() >= 0) {
+            Tile tile = state.getLastDiscardedTile();
+            if (tile != null && tile.getType().getIndex() == player.getMissSuit()) {
+                throw new IllegalStateException("定缺后不能吃自己的缺门牌");
+            }
         }
 
         List<List<Integer>> options = WinChecker.getChiOptions(player, state.getLastDiscardedTile());
@@ -357,6 +375,12 @@ public class GameEngine {
     public void mingGang(int seatIndex, int tileId, int fromSeat) {
         validatePlaying();
         Player player = room.getPlayer(seatIndex);
+        if (player != null && player.getMissSuit() >= 0) {
+            Tile tile = Tile.fromId(tileId, 0);
+            if (tile.getType().getIndex() == player.getMissSuit()) {
+                throw new IllegalStateException("定缺后不能杠自己的缺门牌");
+            }
+        }
 
         List<Tile> removed = player.removeTiles(tileId, 3);
         removed.add(state.getLastDiscardedTile());
@@ -374,6 +398,12 @@ public class GameEngine {
     public void anGang(int seatIndex, int tileId) {
         validatePlaying();
         Player player = room.getPlayer(seatIndex);
+        if (player != null && player.getMissSuit() >= 0) {
+            Tile tile = Tile.fromId(tileId, 0);
+            if (tile.getType().getIndex() == player.getMissSuit()) {
+                throw new IllegalStateException("定缺后不能杠自己的缺门牌");
+            }
+        }
 
         List<Tile> removed = player.removeTiles(tileId, 4);
         player.addConcealedKong(removed);
@@ -392,6 +422,13 @@ public class GameEngine {
     public List<Integer> buGang(int seatIndex, int tileId) {
         validatePlaying();
         Player player = room.getPlayer(seatIndex);
+
+        if (player != null && player.getMissSuit() >= 0) {
+            Tile tile = Tile.fromId(tileId, 0);
+            if (tile.getType().getIndex() == player.getMissSuit()) {
+                throw new IllegalStateException("定缺后不能补杠自己的缺门牌");
+            }
+        }
 
         // 从手牌移出1张
         List<Tile> removed = player.removeTiles(tileId, 1);

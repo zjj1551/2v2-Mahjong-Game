@@ -18,10 +18,23 @@ Thumbs.db
 # External reference project (do not upload)
 mahjong-GitHub/
 
-# Ignore full Cocos project folders and builds
+# Ignore full Cocos source project folders
 mahjong-Cocos/
 3DMahjong/
-mahjong-frontend/cocos-build/
 
-# Ignore any folder or file with 'cocos' in name (catch-alls for build dirs)
-**/*cocos*/
+# Local runtime artifacts
+mahjong-server.log
+mahjong-server.pid
+
+# Test files (do not upload)
+mahjong-server/src/test/
+mahjong-frontend/test-*.js
+
+# Generated test reports and images (do not upload)
+mahjong-server/test_report*.png
+mahjong-server/test_report*.svg
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp

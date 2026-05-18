@@ -414,6 +414,7 @@ class RoomController {
             return `
                 <div class="player-status-card ${isSelf ? 'is-self' : ''} ${!isOnline ? 'is-offline' : ''} ${isHu ? 'is-hu' : ''}">
                     <div class="player-status-head">
+                        <div class="player-status-avatar" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:10px;background:${seat.avatarColor || 'var(--color-primary)'};color:#111;font-weight:900;box-shadow:0 6px 14px rgba(0,0,0,0.25);">${seat.avatarChar || (seat.nickname || ('玩家' + seat.seatIndex))[0]}</div>
                         <div class="player-status-name">${seat.nickname || ('玩家' + seat.seatIndex)}</div>
                         <div class="player-status-seat">座位 ${seat.seatIndex}</div>
                     </div>
@@ -449,10 +450,13 @@ class RoomController {
 
             if (p) {
                 // 已有人
-                const displayName = p.isBot ? `${p.nickname} [AI]` : p.nickname;
+                const safeNickname = p.nickname || (p.isBot ? 'AI' : `玩家${p.seatIndex}`);
+                const displayName = p.isBot ? `${safeNickname} [AI]` : safeNickname;
                 nameEl.innerText = displayName;
                 nameEl.style.color = p.ready ? 'var(--color-success)' : '#fff';
-                avatarEl.innerText = p.isBot ? 'AI' : p.nickname.charAt(0).toUpperCase();
+                const avatarText = p.avatarChar || (p.isBot ? 'AI' : safeNickname.charAt(0).toUpperCase());
+                avatarEl.innerText = avatarText;
+                avatarEl.style.background = p.avatarColor || 'var(--color-primary)';
                 
                 // 状态表现
                 if (p.ready) {

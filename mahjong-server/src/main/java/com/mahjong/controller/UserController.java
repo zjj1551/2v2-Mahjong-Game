@@ -54,6 +54,8 @@ public class UserController {
             result.put("success", true);
             result.put("userId", user.getId());
             result.put("nickname", user.getNickname());
+            result.put("avatarChar", buildAvatarChar(user.getNickname()));
+            result.put("avatarColor", buildAvatarColor(user.getId()));
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "msg", e.getMessage()));
@@ -84,6 +86,8 @@ public class UserController {
             result.put("userId", user.getId());
             result.put("username", user.getUsername());
             result.put("nickname", user.getNickname());
+            result.put("avatarChar", buildAvatarChar(user.getNickname()));
+            result.put("avatarColor", buildAvatarColor(user.getId()));
             result.put("role", user.getRole());
             result.put("status", user.getStatus());
             result.put("totalScore", user.getTotalScore());
@@ -110,6 +114,8 @@ public class UserController {
         result.put("success", true);
         result.put("userId", user.getId());
         result.put("nickname", user.getNickname());
+        result.put("avatarChar", buildAvatarChar(user.getNickname()));
+        result.put("avatarColor", buildAvatarColor(user.getId()));
         result.put("role", user.getRole());
         result.put("status", user.getStatus());
         result.put("totalScore", user.getTotalScore());
@@ -149,12 +155,27 @@ public class UserController {
             Map<String, Object> m = new HashMap<>();
             m.put("userId", u.getId());
             m.put("nickname", u.getNickname());
+            m.put("avatarChar", buildAvatarChar(u.getNickname()));
+            m.put("avatarColor", buildAvatarColor(u.getId()));
             m.put("totalScore", u.getTotalScore());
             m.put("winCount", u.getWinCount());
             m.put("gameCount", u.getGameCount());
             return m;
         }).toList();
         return ResponseEntity.ok(Map.of("success", true, "leaderboard", list));
+    }
+
+    private String buildAvatarChar(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return "?";
+        }
+        return nickname.substring(0, 1).toUpperCase();
+    }
+
+    private String buildAvatarColor(Long userId) {
+        long safeId = userId == null ? 0L : userId;
+        int hue = Math.floorMod(Long.hashCode(safeId), 360);
+        return String.format("hsl(%d, 72%%, 58%%)", hue);
     }
 
     // --- 好友系统 API ---

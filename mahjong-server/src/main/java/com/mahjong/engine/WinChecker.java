@@ -28,11 +28,11 @@ public class WinChecker {
         if (player == null || winTile == null) {
             return null;
         }
-        if (!checkMissSuit(player, winTile)) {
-            return null;
-        }
 
         int[] counts = player.toCountArray();
+        if (!checkMissSuit(player, counts, winTile)) {
+            return null;
+        }
         if (includeWinTile) {
             counts[winTile.getTileId()]++;
         }
@@ -67,6 +67,27 @@ public class WinChecker {
         }
         int meldTiles = player.getMelds().size() * 3 + player.getConcealedKongs().size() * 4;
         return (handSize + meldTiles) % 3 == 2;
+    }
+
+    private static boolean checkMissSuit(Player player, int[] counts, Tile winTile) {
+        int missSuit = player.getMissSuit();
+        if (missSuit < 0) {
+            return false;
+        }
+        if (counts != null) {
+            for (int tileId = 0; tileId < Math.min(counts.length, TILE_KIND_COUNT); tileId++) {
+                if (counts[tileId] > 0 && tileId / 9 == missSuit) {
+                    return false;
+                }
+            }
+        } else {
+            for (Tile t : player.getHandTiles()) {
+                if (t.getType().getIndex() == missSuit) {
+                    return false;
+                }
+            }
+        }
+        return winTile.getType().getIndex() != missSuit;
     }
 
     private static boolean checkMissSuit(Player player, Tile winTile) {
@@ -186,15 +207,36 @@ public class WinChecker {
     }
 
     public static boolean canPeng(Player player, Tile tile) {
+        if (player == null || tile == null) {
+            return false;
+        }
+        int missSuit = player.getMissSuit();
+        if (missSuit >= 0 && tile.getType().getIndex() == missSuit) {
+            return false;
+        }
         return player.countTile(tile.getTileId()) >= 2;
     }
 
     public static boolean canMingGang(Player player, Tile tile) {
+        if (player == null || tile == null) {
+            return false;
+        }
+        int missSuit = player.getMissSuit();
+        if (missSuit >= 0 && tile.getType().getIndex() == missSuit) {
+            return false;
+        }
         return player.countTile(tile.getTileId()) >= 3;
     }
 
     public static List<List<Integer>> getChiOptions(Player player, Tile tile) {
         List<List<Integer>> options = new ArrayList<>();
+        if (player == null || tile == null) {
+            return options;
+        }
+        int missSuit = player.getMissSuit();
+        if (missSuit >= 0 && tile.getType().getIndex() == missSuit) {
+            return options;
+        }
         int tileId = tile.getTileId();
         int suitStart = (tileId / 9) * 9;
         int indexInSuit = tileId % 9;
@@ -241,6 +283,16 @@ public class WinChecker {
     }
 
     public static boolean canAnGang(Player player, int tileId) {
+        if (player == null) {
+            return false;
+        }
+        int missSuit = player.getMissSuit();
+        if (missSuit >= 0) {
+            Tile tile = Tile.fromId(tileId, 0);
+            if (tile.getType().getIndex() == missSuit) {
+                return false;
+            }
+        }
         return player.countTile(tileId) >= 4;
     }
 
@@ -375,7 +427,7 @@ public class WinChecker {
     }
 
     private static WinResult checkWinByCounts(Player player, int[] counts, Tile winTile, boolean includeWinTile) {
-        if (!checkMissSuit(player, winTile)) {
+        if (!checkMissSuit(player, counts, winTile)) {
             return null;
         }
 

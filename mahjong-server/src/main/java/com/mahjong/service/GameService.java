@@ -178,6 +178,8 @@ public class GameService {
             resultData.put("seatIndex", seatIndex);
             resultData.put("suitIndex", suitIndex);
             messageSender.broadcast(room, new GameMessage(MessageType.S_MISS_SUIT_RESULT, resultData));
+            roomService.syncRoomSnapshot(roomId);
+            messageSender.broadcast(room, new GameMessage(MessageType.S_ROOM_STATE, buildRoomStateData(room)));
 
             // 所有人定缺完毕 → 庄家出牌
             if (allSelected) {
@@ -228,6 +230,7 @@ public class GameService {
             discardData.put("seatIndex", seatIndex);
             discardData.put("tileId", tileId);
             discardData.put("tileName", result.discardedTile.toString());
+            discardData.put("tingTiles", WinChecker.getTingTiles(room.getPlayer(seatIndex)));
             messageSender.broadcast(room, new GameMessage(MessageType.S_DISCARD, discardData));
 
             // 检查是否有人可以碰/杠/胡/吃
@@ -299,6 +302,7 @@ public class GameService {
             pengData.put("seatIndex", seatIndex);
             pengData.put("tileId", tileId);
             pengData.put("fromSeat", fromSeat);
+            pengData.put("tingTiles", WinChecker.getTingTiles(room.getPlayer(seatIndex)));
             messageSender.broadcast(room, new GameMessage(MessageType.S_PENG, pengData));
 
             // 碰完后玩家需要出牌，启动倒计时
@@ -353,6 +357,7 @@ public class GameService {
             chiData.put("tileId", tileId);
             chiData.put("fromSeat", fromSeat);
             chiData.put("consumeTileIds", resolvedConsume);
+            chiData.put("tingTiles", WinChecker.getTingTiles(room.getPlayer(seatIndex)));
             messageSender.broadcast(room, new GameMessage(MessageType.S_CHI, chiData));
 
             // 吃完后玩家需要出牌，启动倒计时
@@ -392,6 +397,7 @@ public class GameService {
             gangData.put("seatIndex", seatIndex);
             gangData.put("tileId", tileId);
             gangData.put("gangType", "MING");
+            gangData.put("tingTiles", WinChecker.getTingTiles(room.getPlayer(seatIndex)));
             messageSender.broadcast(room, new GameMessage(MessageType.S_GANG, gangData));
         }
 
@@ -418,6 +424,7 @@ public class GameService {
             gangData.put("seatIndex", seatIndex);
             gangData.put("tileId", tileId);
             gangData.put("gangType", "AN");
+            gangData.put("tingTiles", WinChecker.getTingTiles(room.getPlayer(seatIndex)));
             messageSender.broadcast(room, new GameMessage(MessageType.S_GANG, gangData));
         }
 
@@ -444,6 +451,7 @@ public class GameService {
             gangData.put("seatIndex", seatIndex);
             gangData.put("tileId", tileId);
             gangData.put("gangType", "BU");
+            gangData.put("tingTiles", WinChecker.getTingTiles(room.getPlayer(seatIndex)));
             messageSender.broadcast(room, new GameMessage(MessageType.S_GANG, gangData));
         }
 
@@ -451,6 +459,20 @@ public class GameService {
             // 有人可抢杠胡，等待响应
             for (int seat : qiangGangHuSeats) {
                 sendActionOptions(room, seat, true, false, false, false, List.of());
+                if (isBotSeat(room, seat)) {
+                    scheduleBotTask(roomId, () -> {
+                        GameEngine currentEngine = engines.get(roomId);
+                        if (currentEngine == null) {
+                            return;
+                        }
+                        Room currentRoom = currentEngine.getRoom();
+                        Player currentBot = currentRoom.getPlayer(seat);
+                        if (currentBot == null || !currentBot.isBot() || currentBot.isHu()) {
+                            return;
+                        }
+                        hu(roomId, seat, false);
+                    });
+                }
             }
         } else {
             // 无人抢杠，补杠后摸牌
@@ -894,22 +916,51 @@ public class GameService {
         GameEngine engine = getEngine(roomId);
         Room room = engine.getRoom();
         int[] seatTotals = matchSeatScores.computeIfAbsent(roomId, key -> new int[4]);
+        int baseScore = room.getBaseScore();
+
+        List<Integer> huaZhuSeats = new ArrayList<>();
+        List<Integer> winnerSeats = new ArrayList<>();
 
         // 先累计本局个人分，避免 startNewRound 重置后丢失历史分。
         for (int i = 0; i < 4; i++) {
             Player p = room.getPlayer(i);
             if (p != null) {
                 seatTotals[i] += p.getScore();
+                if (p.isHu()) {
+                    winnerSeats.add(i);
+                } else if (p.hasMissSuitTile()) {
+                    huaZhuSeats.add(i);
+                }
+            }
+        }
+
+        int huaZhuPenalty = baseScore;
+        if (!huaZhuSeats.isEmpty()) {
+            for (int huaZhuSeat : huaZhuSeats) {
+                Player huaZhu = room.getPlayer(huaZhuSeat);
+                if (huaZhu == null) continue;
+                int huaZhuTeam = huaZhu.getTeam();
+                for (int targetSeat = 0; targetSeat < 4; targetSeat++) {
+                    Player target = room.getPlayer(targetSeat);
+                    if (target == null) continue;
+                    if (target.getTeam() == huaZhuTeam) continue;
+                    huaZhu.addScore(-huaZhuPenalty);
+                    target.addScore(huaZhuPenalty);
+                    seatTotals[huaZhuSeat] -= huaZhuPenalty;
+                    seatTotals[targetSeat] += huaZhuPenalty;
+                }
             }
         }
 
         replayStore.append(roomId, "ROUND_END", room.getCurrentRound(), Map.of(
-            "round", room.getCurrentRound()));
+            "round", room.getCurrentRound(),
+            "huaZhuSeats", huaZhuSeats));
 
         if (messageSender != null) {
             // 广播本局结算
             Map<String, Object> resultData = new HashMap<>();
             resultData.put("round", room.getCurrentRound());
+            resultData.put("huaZhuSeats", huaZhuSeats);
             List<Map<String, Object>> scores = new ArrayList<>();
             for (int i = 0; i < 4; i++) {
                 Player p = room.getPlayer(i);
@@ -921,6 +972,9 @@ public class GameService {
                 ps.put("nickname", p.getNickname());
                 ps.put("score", p.getScore());
                 ps.put("hu", p.isHu());
+                ps.put("huaZhu", huaZhuSeats.contains(i));
+                ps.put("avatarChar", p.getAvatarChar());
+                ps.put("avatarColor", p.getAvatarColor());
                 scores.add(ps);
             }
             resultData.put("players", scores);
@@ -1009,9 +1063,12 @@ public class GameService {
             ps.put("seatIndex", i);
             ps.put("userId", p.getUserId());
             ps.put("nickname", p.getNickname());
+            ps.put("avatarChar", p.getAvatarChar());
+            ps.put("avatarColor", p.getAvatarColor());
             ps.put("individualScore", seatTotals[i]);
             ps.put("team", p.getTeam());
             ps.put("teamScore", teamTotals[p.getTeam()]);
+            ps.put("huaZhu", p.hasMissSuitTile() && !p.isHu());
             // 兼容前端原字段：整场展示默认按队伍总分排序/展示
             ps.put("totalScore", teamTotals[p.getTeam()]);
             finalScores.add(ps);
@@ -1056,6 +1113,51 @@ public class GameService {
             sb.append("+自摩");
         }
         return sb.toString();
+    }
+
+    private Map<String, Object> buildRoomStateData(Room room) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("roomId", room.getRoomId());
+        data.put("roomName", room.getRoomName());
+        data.put("status", room.getStatus().name());
+        data.put("creatorId", room.getCreatorId());
+        data.put("maxRounds", room.getMaxRounds());
+        data.put("baseScore", room.getBaseScore());
+
+        List<Map<String, Object>> seats = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Player p = room.getPlayer(i);
+            Map<String, Object> seat = new HashMap<>();
+            seat.put("seatIndex", i);
+            if (p != null) {
+                seat.put("occupied", true);
+                seat.put("userId", p.getUserId());
+                seat.put("nickname", p.getNickname());
+                seat.put("team", p.getTeam());
+                seat.put("online", p.isOnline());
+                seat.put("ready", p.isReady());
+                seat.put("isBot", p.isBot());
+                seat.put("isHu", p.isHu());
+                seat.put("missSuit", p.getMissSuit());
+                seat.put("avatarChar", p.getAvatarChar());
+                seat.put("avatarColor", p.getAvatarColor());
+            } else {
+                seat.put("occupied", false);
+            }
+            seats.add(seat);
+        }
+        data.put("seats", seats);
+
+        List<Map<String, Object>> lobbyUsers = new ArrayList<>();
+        room.getLobbyUsers().forEach((userId, nickname) -> {
+            Map<String, Object> lobbyUser = new HashMap<>();
+            lobbyUser.put("userId", userId);
+            lobbyUser.put("nickname", nickname);
+            lobbyUser.put("avatarChar", nickname == null || nickname.isBlank() ? "?" : nickname.substring(0, 1).toUpperCase());
+            lobbyUsers.add(lobbyUser);
+        });
+        data.put("lobbyUsers", lobbyUsers);
+        return data;
     }
 
     /**
@@ -1175,6 +1277,8 @@ public class GameService {
             pi.put("seatIndex", i);
             pi.put("userId", p.getUserId());
             pi.put("nickname", p.getNickname());
+            pi.put("avatarChar", p.getAvatarChar());
+            pi.put("avatarColor", p.getAvatarColor());
             pi.put("score", p.getScore());
             pi.put("isHu", p.isHu());
             pi.put("missSuit", p.getMissSuit());

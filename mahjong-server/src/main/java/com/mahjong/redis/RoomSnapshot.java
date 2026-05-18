@@ -51,6 +51,11 @@ public class RoomSnapshot {
                 seat.put("team", p.getTeam());
                 seat.put("online", p.isOnline());
                 seat.put("ready", p.isReady());
+                seat.put("isHu", p.isHu());
+                seat.put("missSuit", p.getMissSuit());
+                seat.put("isBot", p.isBot());
+                seat.put("avatarChar", p.getAvatarChar());
+                seat.put("avatarColor", p.getAvatarColor());
             }
             seatList.add(seat);
         }

@@ -139,6 +139,18 @@ public class Player {
         return nickname;
     }
 
+    public String getAvatarChar() {
+        if (nickname == null || nickname.isBlank()) {
+            return "?";
+        }
+        return nickname.substring(0, 1).toUpperCase();
+    }
+
+    public String getAvatarColor() {
+        int hue = Math.floorMod(Long.hashCode(userId), 360);
+        return String.format("hsl(%d, 72%%, 58%%)", hue);
+    }
+
     public String getSessionId() {
         return sessionId;
     }

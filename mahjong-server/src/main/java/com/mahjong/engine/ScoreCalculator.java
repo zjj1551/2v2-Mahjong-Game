@@ -92,9 +92,8 @@ public class ScoreCalculator {
      *
      * <p>得分规则：
      * <ul>
-     *   <li>点炮：出炮者 -N分 × 3（相当于单独赔3家），胡牌者 +N分 × 3</li>
-     *   <li>自摸：其余3家各 -N分，胡牌者 +N分 × 3</li>
-     *   <li>双打模式：队友的赔分视为内部结算，对总队分有相同影响</li>
+    *   <li>点炮/自摸/队友点炮：只扣对方队伍的两名玩家，每人 -N 分</li>
+    *   <li>胡牌者最终入账 +2N 分（与对方两名玩家各扣一份相对应）</li>
      * </ul>
      *
      * @param players    4位玩家数组（座位0~3）
@@ -103,18 +102,15 @@ public class ScoreCalculator {
      * @param winScore   该局胡牌计算出的得分（单人份）
      */
     public static void settle(Player[] players, int winnerSeat, int loserSeat, int winScore) {
-        if (loserSeat < 0) {
-            // 自摸：其余3家各扣 winScore
-            for (int i = 0; i < 4; i++) {
-                if (i != winnerSeat) {
-                    players[i].addScore(-winScore);
-                    players[winnerSeat].addScore(winScore);
-                }
+        // 简化规则：所有结算仅扣对方队伍的两名玩家，且平均扣除。
+        // 胡牌者入账为两份（+2 * winScore），对方队伍的每位玩家各扣一份（-winScore）。
+        int winnerTeam = players[winnerSeat].getTeam();
+        for (int i = 0; i < 4; i++) {
+            if (players[i].getTeam() != winnerTeam) {
+                players[i].addScore(-winScore);
             }
-        } else {
-            // 点炮：出炮者单独赔3份
-            players[loserSeat].addScore(-winScore * 3);
-            players[winnerSeat].addScore(winScore * 3);
         }
+        // 胡牌者获得两份
+        players[winnerSeat].addScore(winScore * 2);
     }
 }
