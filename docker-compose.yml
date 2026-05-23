@@ -56,14 +56,13 @@ services:
       - "8080"
 
   frontend:
-    image: nginx:alpine
+    build:
+      context: ./mahjong-frontend
+      dockerfile: Dockerfile
     container_name: mahjong-frontend
     restart: unless-stopped
     depends_on:
       - backend
-    volumes:
-      - ./mahjong-frontend:/usr/share/nginx/html:ro
-      - ./mahjong-frontend/nginx.default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8081:80"
 

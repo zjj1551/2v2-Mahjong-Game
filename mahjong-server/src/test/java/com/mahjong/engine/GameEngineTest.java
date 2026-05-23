@@ -150,7 +150,7 @@ class GameEngineTest {
         @DisplayName("庄家应能出牌")
         void discard_banker_shouldWork() {
             Player banker = room.getPlayer(0);
-            int tileId = banker.getHandTiles().get(0).getTileId();
+            int tileId = pickMissSuitTileId(banker);
 
             GameEngine.DiscardResult result = engine.discard(0, tileId);
             assertNotNull(result);
@@ -163,11 +163,19 @@ class GameEngineTest {
         void discard_shouldRemoveOneFromHand() {
             Player banker = room.getPlayer(0);
             int beforeSize = banker.getHandTiles().size();
-            int tileId = banker.getHandTiles().get(0).getTileId();
+            int tileId = pickMissSuitTileId(banker);
 
             engine.discard(0, tileId);
 
             assertEquals(beforeSize - 1, banker.getHandTiles().size());
+        }
+
+        private int pickMissSuitTileId(Player player) {
+            return player.getHandTiles().stream()
+                    .filter(tile -> tile.getType().getIndex() == 2)
+                    .findFirst()
+                    .orElseGet(() -> player.getHandTiles().get(0))
+                    .getTileId();
         }
 
         @Test
@@ -197,7 +205,7 @@ class GameEngineTest {
         void drawTile_shouldAddOneToHand() {
             // 庄家先出一张牌
             Player banker = room.getPlayer(0);
-            int tileId = banker.getHandTiles().get(0).getTileId();
+            int tileId = pickMissSuitTileId(banker);
             engine.discard(0, tileId);
 
             // 下家摸牌
@@ -213,12 +221,20 @@ class GameEngineTest {
         @DisplayName("摸牌后牌墙应减少1张")
         void drawTile_wallShouldDecrease() {
             Player banker = room.getPlayer(0);
-            int tileId = banker.getHandTiles().get(0).getTileId();
+            int tileId = pickMissSuitTileId(banker);
             engine.discard(0, tileId);
 
             int wallBefore = engine.getState().remainingWall();
             engine.drawTile(1);
             assertEquals(wallBefore - 1, engine.getState().remainingWall());
+        }
+
+        private int pickMissSuitTileId(Player player) {
+            return player.getHandTiles().stream()
+                    .filter(tile -> tile.getType().getIndex() == 2)
+                    .findFirst()
+                    .orElseGet(() -> player.getHandTiles().get(0))
+                    .getTileId();
         }
     }
 

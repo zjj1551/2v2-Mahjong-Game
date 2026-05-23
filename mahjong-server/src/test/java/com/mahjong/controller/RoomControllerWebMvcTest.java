@@ -2,6 +2,8 @@ package com.mahjong.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mahjong.model.Room;
+import com.mahjong.redis.RoomStateStore;
+import com.mahjong.redis.ReplayStore;
 import com.mahjong.service.GameRecordRepository;
 import com.mahjong.service.RoomService;
 import com.mahjong.service.UserRepository;
@@ -42,6 +44,12 @@ class RoomControllerWebMvcTest {
 
     @MockBean
     private UserRepository userRepository;
+
+    @MockBean
+    private RoomStateStore roomStateStore;
+
+    @MockBean
+    private ReplayStore replayStore;
 
     @Test
     @DisplayName("创建房间时写入可选配置")

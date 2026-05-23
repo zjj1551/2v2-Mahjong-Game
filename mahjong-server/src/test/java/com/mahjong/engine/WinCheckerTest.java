@@ -235,6 +235,14 @@ class WinCheckerTest {
         }
 
         @Test
+        @DisplayName("定缺花色不能碰")
+        void canPeng_missingSuit_shouldReturnFalse() {
+            Player player = createPlayer(0, 0, 0, 0, 1, 2, 3);
+            Tile tile = Tile.fromId(0, 1);
+            assertFalse(WinChecker.canPeng(player, tile));
+        }
+
+        @Test
         @DisplayName("手牌只有1张相同不能碰")
         void canPeng_hasOnlyOne_shouldReturnFalse() {
             Player player = createPlayer(0, 2, 5, 1, 2, 3);
@@ -251,10 +259,26 @@ class WinCheckerTest {
         }
 
         @Test
+        @DisplayName("定缺花色不能明杠")
+        void canMingGang_missingSuit_shouldReturnFalse() {
+            Player player = createPlayer(0, 1, 9, 9, 9, 1, 2);
+            Tile tile = Tile.fromId(9, 0);
+            assertFalse(WinChecker.canMingGang(player, tile));
+        }
+
+        @Test
         @DisplayName("手牌有4张相同应能暗杠")
         void canAnGang_hasFour_shouldReturnTrue() {
             Player player = createPlayer(0, 2, 5, 5, 5, 5, 1);
             assertTrue(WinChecker.canAnGang(player, 5));
+        }
+
+        @Test
+        @DisplayName("定缺花色不能暗杠")
+        void canAnGang_missingSuit_shouldReturnFalse() {
+            Player player = createPlayer(0, 2, 18, 18, 18, 18, 1);
+            player.setMissSuit(2);
+            assertFalse(WinChecker.canAnGang(player, 18));
         }
 
         @Test
@@ -340,6 +364,22 @@ class WinCheckerTest {
             List<Integer> tingTiles = WinChecker.getTingTiles(player);
             assertTrue(tingTiles.contains(12), "应提示可听4筒");
             assertTrue(tingTiles.contains(13), "应提示可听5筒");
+        }
+
+        @Test
+        @DisplayName("14张手牌含缺门时，弃掉缺门后仍应给出听牌提示")
+        void getTingTiles_shouldIgnoreCandidateDiscardedMissingSuitTile() {
+            // 123万 456万 789万 1筒2筒3筒4筒 5条（14张，定缺条子）
+            // 先打掉5条后，应恢复为一个正常的听牌手牌。
+            Player player = createPlayer(0, 2,
+                    0, 1, 2,
+                    3, 4, 5,
+                    6, 7, 8,
+                    9, 10, 11, 12,
+                    22);
+
+            List<Integer> tingTiles = WinChecker.getTingTiles(player);
+            assertFalse(tingTiles.isEmpty(), "弃掉缺门后应能得到听牌提示");
         }
     }
 }

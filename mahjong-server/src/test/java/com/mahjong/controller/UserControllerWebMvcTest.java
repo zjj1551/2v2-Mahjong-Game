@@ -101,7 +101,8 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.userId").value(101))
                 .andExpect(jsonPath("$.role").value(1))
-                .andExpect(jsonPath("$.totalScore").value(88));
+            .andExpect(jsonPath("$.totalScore").value(1088))
+            .andExpect(jsonPath("$.avatarChar").value("阿"));
     }
 
     @Test
@@ -120,7 +121,7 @@ class UserControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.leaderboard[0].userId").value(1))
-                .andExpect(jsonPath("$.leaderboard[0].totalScore").value(120))
+                .andExpect(jsonPath("$.leaderboard[0].totalScore").value(1120))
                 .andExpect(jsonPath("$.leaderboard[1].userId").value(2));
     }
 
@@ -152,7 +153,8 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.userId").value(101))
                 .andExpect(jsonPath("$.nickname").value("阿狸"))
-                .andExpect(jsonPath("$.totalScore").value(66));
+                .andExpect(jsonPath("$.totalScore").value(1066))
+                .andExpect(jsonPath("$.avatarColor").exists());
     }
 
     private static void setUserId(UserEntity user, Long id) throws Exception {

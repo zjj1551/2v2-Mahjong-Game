@@ -169,31 +169,45 @@ class ScoreCalculatorTest {
     class SettleTests {
 
         @Test
-        @DisplayName("自摸结算：其余3家各扣，胡牌者得3份")
+        @DisplayName("自摸结算：只扣对方队伍两人，胡牌者得两份")
         void settle_ziMo_shouldDistributeCorrectly() {
             Player[] players = createPlayers();
             int winScore = 10;
 
             ScoreCalculator.settle(players, 0, -1, winScore);
 
-            assertEquals(30, players[0].getScore(), "胡牌者应得+30");
-            assertEquals(-10, players[1].getScore(), "闲家1应扣-10");
-            assertEquals(-10, players[2].getScore(), "闲家2应扣-10");
-            assertEquals(-10, players[3].getScore(), "闲家3应扣-10");
+            assertEquals(20, players[0].getScore(), "胡牌者应得+20");
+            assertEquals(-10, players[1].getScore(), "对方队友1应扣-10");
+            assertEquals(0, players[2].getScore(), "同队队友应不变");
+            assertEquals(-10, players[3].getScore(), "对方队友2应扣-10");
         }
 
         @Test
-        @DisplayName("点炮结算：出炮者独赔3份")
-        void settle_dianPao_shouldChargeShooter() {
+        @DisplayName("点炮结算：对方点炮，仍只扣对方队伍两人")
+        void settle_dianPaoByOpponent_shouldChargeOpponents() {
+            Player[] players = createPlayers();
+            int winScore = 10;
+
+            ScoreCalculator.settle(players, 0, 1, winScore);
+
+            assertEquals(20, players[0].getScore(), "胡牌者应得+20");
+            assertEquals(-10, players[1].getScore(), "出炮者属于对方队伍，扣-10");
+            assertEquals(0, players[2].getScore(), "同队队友应不变");
+            assertEquals(-10, players[3].getScore(), "对方队友2应扣-10");
+        }
+
+        @Test
+        @DisplayName("点炮结算：队友点炮，仍只扣对方队伍两人")
+        void settle_dianPaoByTeammate_shouldChargeOpponents() {
             Player[] players = createPlayers();
             int winScore = 10;
 
             ScoreCalculator.settle(players, 0, 2, winScore);
 
-            assertEquals(30, players[0].getScore(), "胡牌者应得+30");
-            assertEquals(0, players[1].getScore(), "闲家1不受影响");
-            assertEquals(-30, players[2].getScore(), "出炮者应扣-30");
-            assertEquals(0, players[3].getScore(), "闲家3不受影响");
+            assertEquals(20, players[0].getScore(), "胡牌者应得+20");
+            assertEquals(-10, players[1].getScore(), "对方队友1应扣-10");
+            assertEquals(0, players[2].getScore(), "出炮者若为本队，则本场规则只扣对方队伍");
+            assertEquals(-10, players[3].getScore(), "对方队友2应扣-10");
         }
 
         @Test

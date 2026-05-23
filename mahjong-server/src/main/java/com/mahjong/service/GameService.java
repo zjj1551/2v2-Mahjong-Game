@@ -988,8 +988,8 @@ public class GameService {
             // 下一局
             room.incrementRound();
             roomService.syncRoomSnapshot(roomId);
-            // 庄家轮转：胡牌则胡牌者为庄；荒庄则保留当前庄家
-            int bankerSeat = lastWinnerSeatMap.getOrDefault(roomId, engine.getState().getBankerSeat());
+            // 庄家按东南西北顺序轮转
+            int bankerSeat = (room.getCurrentRound() - 1) % 4;
             List<List<Tile>> hands = engine.startNewRound(bankerSeat);
 
             replayStore.append(roomId, "ROUND_START", room.getCurrentRound(), Map.of(
@@ -1123,6 +1123,13 @@ public class GameService {
         data.put("creatorId", room.getCreatorId());
         data.put("maxRounds", room.getMaxRounds());
         data.put("baseScore", room.getBaseScore());
+
+        GameState state = room.getGameState();
+        if (state != null) {
+            data.put("bankerSeat", state.getBankerSeat());
+            data.put("phase", state.getPhase().name());
+            data.put("remaining", state.remainingWall());
+        }
 
         List<Map<String, Object>> seats = new ArrayList<>();
         for (int i = 0; i < 4; i++) {

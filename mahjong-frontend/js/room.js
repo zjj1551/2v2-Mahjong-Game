@@ -33,7 +33,7 @@ class RoomController {
         this.mySeatIndex = -1;
         this.isReady = false;
         this.roomStatus = 'WAITING';
-        
+
         // UI 初始化
         const btnReady = document.getElementById('btn-ready');
         btnReady.disabled = true;
@@ -113,11 +113,11 @@ class RoomController {
         this.latestGameStartData = null;
         this.latestHuSeatIndex = null;
         this.unmountCocos();
-        
-        // 显式隐藏房间头部的管理按钮区
+
+        // 显示隐藏房间头部的管理按钮区
         const creatorEl = document.getElementById('creator-controls');
         if (creatorEl) creatorEl.style.display = 'none';
-        
+
         // 清空聊天
         document.getElementById('chat-message-list').innerHTML = '';
         const gameChatList = document.getElementById('game-chat-message-list');
@@ -127,13 +127,13 @@ class RoomController {
     // WebSocket 广播：全量房间状态同步
     handleRoomStateUpdate(data) {
         if (!data) return;
-        
+
         this.latestRoomState = data;
         this.currentRoomId = data.roomId;
         if (window.lobby) window.lobby.saveRoomContext(data.roomId);
         this.isCreator = data.creatorId === app.state.user.userId;
         this.roomStatus = data.status || 'WAITING';
-        
+
         // 房主控制区显示/隐藏
         const creatorEl = document.getElementById('creator-controls');
         if (creatorEl) creatorEl.style.display = this.isCreator ? 'flex' : 'none';
@@ -407,15 +407,19 @@ class RoomController {
             const badges = [];
             badges.push(`<span class="player-state-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? '在线' : '离线'}</span>`);
             if (seat.ready) badges.push('<span class="player-state-badge ready">准备</span>');
-            if (missSuitName) badges.push(`<span class="player-state-badge miss">缺${missSuitName}</span>`);
+            if (missSuitName) badges.push(`<span class="player-state-badge miss">缺${missSuitName}</span>`);    
             if (isHu) badges.push('<span class="player-state-badge hu">胡</span>');
             if (seat.isBot) badges.push('<span class="player-state-badge offline">AI</span>');
+
+            const nickname = seat.nickname || ('玩家' + seat.seatIndex);
+            const avatarChar = seat.avatarChar || this._getInitialText(nickname);
+            const avatarColor = seat.avatarColor || this._getDeterministicColor(nickname);
 
             return `
                 <div class="player-status-card ${isSelf ? 'is-self' : ''} ${!isOnline ? 'is-offline' : ''} ${isHu ? 'is-hu' : ''}">
                     <div class="player-status-head">
-                        <div class="player-status-avatar" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:10px;background:${seat.avatarColor || 'var(--color-primary)'};color:#111;font-weight:900;box-shadow:0 6px 14px rgba(0,0,0,0.25);">${seat.avatarChar || (seat.nickname || ('玩家' + seat.seatIndex))[0]}</div>
-                        <div class="player-status-name">${seat.nickname || ('玩家' + seat.seatIndex)}</div>
+                        <div class="player-status-avatar" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:10px;background:${avatarColor};color:#fff;font-weight:900;box-shadow:0 6px 14px rgba(0,0,0,0.25);">${avatarChar}</div>
+                        <div class="player-status-name">${nickname}</div>     
                         <div class="player-status-seat">座位 ${seat.seatIndex}</div>
                     </div>
                     <div class="player-status-badges">
@@ -427,11 +431,37 @@ class RoomController {
         }).join('');
     }
 
+    _getInitialText(name) {
+        if (!name) return "?";
+        const trimmed = name.trim();
+        // 中文取第一个字
+        if (/[\u4e00-\u9fa5]/.test(trimmed)) {
+            return trimmed.charAt(0);
+        }
+        // 英文取前两个字母
+        return trimmed.substring(0, 2).toUpperCase();
+    }
+
+    _getDeterministicColor(name) {
+        if (!name) return 'var(--color-primary)';
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const r = (hash & 0xFF0000) >> 16;
+        const g = (hash & 0x00FF00) >> 8;
+        const b = hash & 0x0000FF;
+        return `rgb(${r % 180}, ${g % 180}, ${b % 180})`;
+    }
+
     sendToCocos(action, payload) {
         if (!this.cocosFrame || !this.cocosFrame.contentWindow) return;
         const enrichedPayload = {
             ...(payload || {}),
-            myUserId: app.state.user?.userId
+            myUserId: app.state.user?.userId,
+            mySeatIndex: this.mySeatIndex,
+            myTotalScore: Number(app.state.user?.totalScore ?? app.state.user?.score ?? 0),
+            currentUser: app.state.user || null
         };
         this.cocosFrame.contentWindow.postMessage({ action, payload: enrichedPayload }, window.location.origin);
     }
@@ -443,7 +473,7 @@ class RoomController {
         for (let i = 0; i < 4; i++) {
             const el = document.querySelector(`.seat[data-seat="${i}"]`);
             if (!el) continue;
-            
+
             const nameEl = el.querySelector('.seat-name');
             const avatarEl = el.querySelector('.seat-avatar');
             const p = this.seats[i];
@@ -454,10 +484,14 @@ class RoomController {
                 const displayName = p.isBot ? `${safeNickname} [AI]` : safeNickname;
                 nameEl.innerText = displayName;
                 nameEl.style.color = p.ready ? 'var(--color-success)' : '#fff';
-                const avatarText = p.avatarChar || (p.isBot ? 'AI' : safeNickname.charAt(0).toUpperCase());
-                avatarEl.innerText = avatarText;
-                avatarEl.style.background = p.avatarColor || 'var(--color-primary)';
                 
+                const avatarChar = p.avatarChar || this._getInitialText(safeNickname);
+                const avatarColor = p.avatarColor || this._getDeterministicColor(safeNickname);
+                
+                avatarEl.innerText = avatarChar;
+                avatarEl.style.background = avatarColor;
+                avatarEl.style.color = '#fff';
+
                 // 状态表现
                 if (p.ready) {
                     avatarEl.style.border = '3px solid var(--color-success)';
@@ -477,7 +511,8 @@ class RoomController {
                 // 空座
                 nameEl.innerText = `点击坐下 (${uiSeatNames[i]})`;
                 nameEl.style.color = 'var(--text-muted)';
-                avatarEl.innerText = '🪑';
+                avatarEl.innerText = '👤';
+                avatarEl.style.background = '';
                 avatarEl.style.border = '2px dashed rgba(255,255,255,0.3)';
                 avatarEl.style.boxShadow = 'none';
                 avatarEl.style.opacity = '1';
@@ -490,7 +525,7 @@ class RoomController {
         const btnReady = document.getElementById('btn-ready');
         const btnStart = document.getElementById('btn-start-game');
         const btnAddBot = document.getElementById('btn-add-bot');
-        
+
         if (this.mySeatIndex === -1) {
             btnReady.disabled = true;
             btnReady.innerText = "请先选座";
@@ -617,7 +652,7 @@ class RoomController {
 
     appendMessage(senderName, text, isSelf) {
         const activeGame = app.state.currentView === 'game';
-        const list = document.getElementById(activeGame ? 'game-chat-message-list' : 'chat-message-list');
+        const list = document.getElementById(activeGame ? 'game-chat-message-list' : 'chat-message-list');      
         if (!list) return;
         const msgWrapper = document.createElement('div');
         msgWrapper.style.display = "flex";
