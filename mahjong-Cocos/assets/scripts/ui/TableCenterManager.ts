@@ -22,9 +22,12 @@ export class TableCenterManager extends Component {
     private _timer: any = null;
     private _localSeatIndex: number = 0;
     private _directionSlots: Vec3[] = [];
+    private _directionBaseAngles: number[] = [];
+    private _middleBaseAngle: number = 0;
 
     protected onLoad() {
         this._captureDirectionSlots();
+        this._captureDirectionBaseAngles();
         this.loadStaticSprite(this.bgSprite, 'textures/dir/dir_bg/spriteFrame');
         this.loadStaticSprite(this.middleSprite, 'textures/dir/middle/spriteFrame');
         this._layoutDirectionsForLocalSeat();
@@ -47,6 +50,7 @@ export class TableCenterManager extends Component {
         if (seatIndex < 0 || seatIndex > 3) return;
         this._localSeatIndex = seatIndex;
         this._captureDirectionSlots();
+        this._captureDirectionBaseAngles();
         this._layoutDirectionsForLocalSeat();
     }
 
@@ -59,6 +63,14 @@ export class TableCenterManager extends Component {
 
     private _layoutDirectionsForLocalSeat() {
         if (this._directionSlots.length !== this.dirNodes.length) return;
+        if (this._directionBaseAngles.length !== this.dirNodes.length) {
+            this._captureDirectionBaseAngles();
+        }
+
+        const rotationOffset = -this._localSeatIndex * 90;
+        if (this.middleSprite?.node) {
+            this.middleSprite.node.angle = this._middleBaseAngle + rotationOffset;
+        }
 
         this.dirNodes.forEach((node, absoluteSeat) => {
             const relativeSeat = (absoluteSeat - this._localSeatIndex + 4) % 4;
@@ -66,12 +78,20 @@ export class TableCenterManager extends Component {
             if (slot) {
                 node.setPosition(slot);
             }
+            const baseAngle = this._directionBaseAngles[absoluteSeat] ?? 0;
+            node.angle = baseAngle + rotationOffset;
         });
     }
 
     private _captureDirectionSlots() {
         if (this._directionSlots.length === this.dirNodes.length) return;
         this._directionSlots = this.dirNodes.map(node => node.position.clone());
+    }
+
+    private _captureDirectionBaseAngles() {
+        if (this._directionBaseAngles.length === this.dirNodes.length) return;
+        this._directionBaseAngles = this.dirNodes.map(node => node.angle);
+        this._middleBaseAngle = this.middleSprite?.node?.angle ?? 0;
     }
 
     /**

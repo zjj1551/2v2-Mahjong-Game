@@ -17,23 +17,23 @@ export class RoundResultPanel extends Component {
     }
 
     protected onDestroy(): void {
-        WebSocketManager.instance.off(MessageType.S_ROUND_RESULT, this._onRoundResult);
-        WebSocketManager.instance.off(MessageType.S_GAME_OVER, this._onGameOver);
+        WebSocketManager.instance.off(MessageType.S_ROUND_RESULT, this._onRoundResult, this);
+        WebSocketManager.instance.off(MessageType.S_GAME_OVER, this._onGameOver, this);
     }
 
     private _onRoundResult(data: any): void {
-        // 向外部 HTML iframe 或父窗口发送单局结算数据
-        if (window && window.parent) {
-            window.parent.postMessage({ type: 'S_ROUND_RESULT', data: data }, '*');
-        }
+        WebSocketManager.instance.emitToFrontend('COCOS_EVENT', {
+            action: MessageType.S_ROUND_RESULT,
+            data
+        });
         console.log('[RoundResultPanel] Post S_ROUND_RESULT to HTML');
     }
 
     private _onGameOver(data: any): void {
-        // 向外部 HTML iframe 或父窗口发送对局结束数据
-        if (window && window.parent) {
-            window.parent.postMessage({ type: 'S_GAME_OVER', data: data }, '*');
-        }
+        WebSocketManager.instance.emitToFrontend('COCOS_EVENT', {
+            action: MessageType.S_GAME_OVER,
+            data
+        });
         console.log('[RoundResultPanel] Post S_GAME_OVER to HTML');
     }
 }

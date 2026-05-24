@@ -24,6 +24,7 @@ export enum MessageType {
 
     // Server to Client
     S_ROOM_STATE = "S_ROOM_STATE",
+    S_SPECTATE_INIT = "S_SPECTATE_INIT",
     S_PLAYER_STATUS = "S_PLAYER_STATUS",
     S_GAME_START = "S_GAME_START",
     S_SELECT_MISS_SUIT = "S_SELECT_MISS_SUIT",

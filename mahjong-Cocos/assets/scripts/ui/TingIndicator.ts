@@ -3,13 +3,13 @@ import { MahjongTile } from './MahjongTile';
 const { ccclass, property } = _decorator;
 
 /**
- * 听牌提示器
- * 用于在屏幕上方/角落显示玩家当前可胡的牌
+ * 听牌指示器组件
+ * 当玩家抓牌后，如果已经听牌，在屏幕下方显示当前听牌的花色和剩余张数（可选）
  */
 @ccclass('TingIndicator')
 export class TingIndicator extends Component {
     @property(Node)
-    container: Node = null!; // 存放提示牌的容器 (建议挂一个 Layout 组件，Horizontal)
+    container: Node = null!; // 听牌图标容器 (通常是一个带有 Layout 组件的水平节点)
 
     @property(Prefab)
     tilePrefab: Prefab = null!; // 麻将牌预制件
@@ -22,53 +22,55 @@ export class TingIndicator extends Component {
     }
 
     private _initUI() {
-        // 如果没有挂载 UITransform，自动添加
+        // 确保有 UITransform
         let uiTransform = this.node.getComponent(UITransform);
         if (!uiTransform) {
             uiTransform = this.node.addComponent(UITransform);
         }
 
-        // 添加一个半透明黑色背景
+        // 动态添加一个黑色半透明背景
         if (!this.node.getComponent(Sprite)) {
-            this._bgSprite = this.node.addComponent(Sprite);
-            this._bgSprite.color = color(0, 0, 0, 150); // 半透明黑底
+            this._bgSprite = this.node.addComponent(Sprite); 
+            this._bgSprite.color = color(0, 0, 0, 150); 
         }
 
-        // 如果没有设置 container，自动创建一个
+        // 初始化容器
         if (!this.container) {
-            this.container = new Node('TingContainer');
+            this.container = new Node('TingContainer');      
             this.container.parent = this.node;
         }
 
-        // 确保 container 有 Layout
-        let layout = this.container.getComponent(Layout);
+        // 配置 Layout
+        let layout = this.container.getComponent(Layout);    
         if (!layout) {
-            layout = this.container.addComponent(Layout);
+            layout = this.container.addComponent(Layout);    
             layout.type = Layout.Type.HORIZONTAL;
-            layout.resizeMode = Layout.ResizeMode.CONTAINER;
-            layout.spacingX = 5; // 牌之间的间距
-        }
-        
-        // 确保 container 有 UITransform
-        if (!this.container.getComponent(UITransform)) {
-            this.container.addComponent(UITransform);
+            layout.resizeMode = Layout.ResizeMode.CONTAINER; 
+            layout.spacingX = 10; 
         }
 
-        // 在 container 左侧添加一个 "听" 字标识
-        const labelNode = new Node('TingLabel');
-        labelNode.parent = this.container;
-        const labelUi = labelNode.addComponent(UITransform);
-        labelUi.setContentSize(50, 50);
-        const label = labelNode.addComponent(Label);
-        label.string = '听:';
-        label.fontSize = 35;
-        label.lineHeight = 50;
-        label.color = Color.YELLOW;
+        if (!this.container.getComponent(UITransform)) {     
+            this.container.addComponent(UITransform);        
+        }
+
+        // 添加“听”字标签
+        let labelNode = this.container.getChildByName('TingLabel');
+        if (!labelNode) {
+            labelNode = new Node('TingLabel');
+            labelNode.parent = this.container;
+            const labelUi = labelNode.addComponent(UITransform); 
+            labelUi.setContentSize(60, 60);
+            const label = labelNode.addComponent(Label);
+            label.string = '听:';
+            label.fontSize = 32;
+            label.lineHeight = 60;
+            label.color = Color.YELLOW;
+        }
     }
 
     /**
      * 显示听牌提示
-     * @param tingTiles 可胡的牌的 ID 数组
+     * @param tingTiles 听牌 ID 列表
      */
     public showTing(tingTiles: number[]) {
         if (!tingTiles || tingTiles.length === 0) {
@@ -76,36 +78,40 @@ export class TingIndicator extends Component {
             return;
         }
 
-        if (!this.container || !this.tilePrefab) return;
-
-        this.node.active = true;
-        
-        // 保留第一个子节点 (就是我们刚创建的 "听" 字 Label)，移除其他之前的牌
-        const children = this.container.children;
-        for (let i = children.length - 1; i >= 1; i--) {
-            children[i].destroy();
+        if (!this.container || !this.tilePrefab) {
+            console.warn('[TingIndicator] Missing container or tilePrefab');
+            return;
         }
 
-        // 排序，让提示看起来更规整
-        tingTiles.sort((a, b) => a - b);
+        this.node.active = true;
 
-        // 去重，防止相同的胡牌被显示多次
-        const uniqueTingTiles = [...new Set(tingTiles)];
+        // 清理旧的听牌图标（保留第一个节点即 "听:" 标签）
+        const children = this.container.children;
+        for (let i = children.length - 1; i >= 0; i--) {
+            if (children[i].name !== 'TingLabel') {
+                children[i].destroy();
+            }
+        }
 
-        uniqueTingTiles.forEach(tileId => {
-            const tileNode = instantiate(this.tilePrefab);
+        // 排序并去重
+        const sortedTiles = [...new Set(tingTiles)].sort((a, b) => a - b);
+
+        sortedTiles.forEach(tileId => {
+            const tileNode = instantiate(this.tilePrefab);   
             tileNode.parent = this.container;
-            // 听牌提示的图标通常比较小
-            tileNode.setScale(v3(0.6, 0.6, 1));
-            
-            const tileComp = tileNode.getComponent(MahjongTile);
-            if (tileComp) tileComp.init(tileId);
+            // 听牌提示图标稍微小一点
+            tileNode.setScale(v3(0.5, 0.5, 1));
 
-            // 禁用点击事件，防止误触
+            const tileComp = tileNode.getComponent(MahjongTile);
+            if (tileComp) {
+                tileComp.init(tileId);
+            }
+
+            // 禁用听牌图标的交互
             tileNode.off(Node.EventType.TOUCH_END);
         });
 
-        // 简单的淡入效果
+        // 播放渐显动画
         this.node.setScale(v3(0.8, 0.8, 1));
         tween(this.node)
             .to(0.2, { scale: v3(1, 1, 1) }, { easing: 'backOut' })

@@ -27,6 +27,23 @@ export class DiscardRiver extends Component {
         this._appendTile(tileId);
     }
 
+    public removeLastDiscard(tileId?: number): void {
+        if (this._discards.length === 0) return;
+
+        let index = this._discards.length - 1;
+        if (typeof tileId === 'number') {
+            for (let i = this._discards.length - 1; i >= 0; i--) {
+                if (this._discards[i] === tileId) {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        this._discards.splice(index, 1);
+        this._rebuildTiles();
+    }
+
     /** 清空弃牌河（新局开始时调用） */
     public clear(): void {
         this._discards = [];
@@ -43,5 +60,13 @@ export class DiscardRiver extends Component {
 
         const tile = node.getComponent(MahjongTile);
         tile?.init(tileId);
+    }
+
+    private _rebuildTiles(): void {
+        if (!this.content) return;
+        this.content.removeAllChildren();
+        for (const tileId of this._discards) {
+            this._appendTile(tileId);
+        }
     }
 }

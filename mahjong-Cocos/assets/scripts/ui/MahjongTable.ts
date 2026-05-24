@@ -20,6 +20,9 @@ export class MahjongTable extends Component {
     @property(Prefab)
     tilePrefab: Prefab = null!;
 
+    @property(Prefab)
+    meldTilePrefab: Prefab = null!;
+
     private _mySeatIndex: number = -1;
     private _discardLocked: boolean = true;
 
@@ -83,7 +86,7 @@ export class MahjongTable extends Component {
             this._discardLocked = false;
             const drawTileId = typeof tileId === 'number' ? tileId : tile ? tile.tileId : undefined;
             if (typeof drawTileId === 'number') {
-                this._addTileToHand(drawTileId);
+                this._addTileToHand(drawTileId, true);
             }
             this._refreshHandInteractable();
         }
@@ -98,9 +101,13 @@ export class MahjongTable extends Component {
 
     public onChi(tileId: number, consumeTileIds: number[]) {
         this._removeTilesFromHand(consumeTileIds || []);
-        this._addMeld([...(consumeTileIds || []), tileId]);
+        this._addMeld([...(consumeTileIds || []), tileId].sort((a, b) => a - b));
         this._discardLocked = false;
         this._refreshHandInteractable();
+    }
+
+    public removeLastDiscard(tileId?: number) {
+        this.bottomDiscardRiver?.removeLastDiscard(tileId);
     }
 
     public onGang(tileId: number, gangType: string) {
@@ -134,16 +141,20 @@ export class MahjongTable extends Component {
 
         if (seatIndex === this._mySeatIndex) {
             this._removeConfirmedDiscard(tileId);
+            this._sortHandTiles();
         }
 
         this._refreshHandInteractable();
     }
 
-    private _addTileToHand(tileId: number) {
+    private _addTileToHand(tileId: number, appendToRight: boolean = false) {
         if (!this.tilePrefab || !this.bottomHandContainer) return;
 
         const node = instantiate(this.tilePrefab);
         node.parent = this.bottomHandContainer;
+        if (!appendToRight) {
+            node.setSiblingIndex(this._getSortedInsertIndex(tileId));
+        }
 
         const comp = node.getComponent(MahjongTile);
         if (comp) {
@@ -155,6 +166,34 @@ export class MahjongTable extends Component {
         });
 
         this._refreshTileInteractable(node);
+    }
+
+    private _getSortedInsertIndex(tileId: number): number {
+        if (!this.bottomHandContainer) return 0;
+        const children = this.bottomHandContainer.children;
+
+        for (let i = 0; i < children.length; i++) {
+            const comp = children[i].getComponent(MahjongTile);
+            if (!comp) continue;
+            if (comp.tileId > tileId) {
+                return i;
+            }
+        }
+
+        return children.length;
+    }
+
+    private _sortHandTiles() {
+        if (!this.bottomHandContainer) return;
+        const tiles = this.bottomHandContainer.children
+            .map(node => {
+                const comp = node.getComponent(MahjongTile);
+                return comp ? { node, tileId: comp.tileId } : null;
+            })
+            .filter((item): item is { node: Node; tileId: number } => item !== null)
+            .sort((a, b) => a.tileId - b.tileId);
+
+        tiles.forEach((item, index) => item.node.setSiblingIndex(index));
     }
 
     private _requestDiscard(tileId: number) {
@@ -219,10 +258,11 @@ export class MahjongTable extends Component {
     }
 
     private _addMeld(tileIds: number[]) {
-        if (!this.bottomMeldContainer || !this.tilePrefab) return;
+        const prefab = this.meldTilePrefab || this.tilePrefab;
+        if (!this.bottomMeldContainer || !prefab) return;
 
         for (const id of tileIds) {
-            const node = instantiate(this.tilePrefab);
+            const node = instantiate(prefab);
             node.parent = this.bottomMeldContainer;
             node.setScale(v3(0.8, 0.8, 1));
 
